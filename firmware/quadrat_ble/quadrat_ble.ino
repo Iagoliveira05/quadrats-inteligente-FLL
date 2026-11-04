@@ -105,7 +105,12 @@ void setup() {
   );
   measurementCharacteristic->addDescriptor(new BLE2902());
   service->start();
-  server->getAdvertising()->start();
+  BLEAdvertising* advertising = server->getAdvertising();
+  advertising->addServiceUUID(SERVICE_UUID);
+  advertising->setScanResponse(true);
+  advertising->setMinPreferred(0x06);
+  advertising->setMinPreferred(0x12);
+  advertising->start();
 
   Serial.println("Quadrat Inteligente iniciado");
   Serial.print("Device ID: ");
