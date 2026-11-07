@@ -44,6 +44,7 @@ import "./record-details.css";
 import "./navigation-actions.css";
 import "./ble-persistence.css";
 import "./team-navigation.css";
+import "./refresh-controls.css";
 
 type Section =
   | "Inicio"
@@ -296,6 +297,8 @@ function ItemsPage({
   addLabel,
   onAdd,
   onDelete,
+  onRefresh,
+  refreshing,
 }: {
   title: string;
   items: WorkspaceItem[];
@@ -303,6 +306,8 @@ function ItemsPage({
   addLabel: string;
   onAdd: () => void;
   onDelete?: (item: WorkspaceItem) => Promise<void>;
+  onRefresh: () => Promise<void>;
+  refreshing: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<WorkspaceItem | null>(null);
@@ -322,10 +327,16 @@ function ItemsPage({
           <span className="eyebrow">REGISTROS DO PROJETO</span>
           <h2>{title}</h2>
         </div>
-        <button className="small" onClick={onAdd}>
-          <Plus size={14} />
-          {addLabel}
-        </button>
+        <div className="page-actions">
+          <button className="refresh-records" onClick={() => void onRefresh()} disabled={refreshing}>
+            <RefreshCw size={14} className={refreshing ? "spin" : ""} />
+            {refreshing ? "Atualizando..." : "Atualizar"}
+          </button>
+          <button className="small" onClick={onAdd}>
+            <Plus size={14} />
+            {addLabel}
+          </button>
+        </div>
       </div>
       {items.length === 0 ? (
         <div className="empty-state">
@@ -526,7 +537,11 @@ function StatCard({
 
 export default function App() {
   const { user, logout } = useAuth();
-  const [section, setSection] = useState<Section>("Inicio");
+  const [section, setSection] = useState<Section>(() => {
+    const saved = localStorage.getItem("activeSection");
+    const valid: Section[] = ["Inicio", "Areas", "Quadrats", "Coletas", "Equipe", "Dados", "Tutorial"];
+    return valid.includes(saved as Section) ? saved as Section : "Inicio";
+  });
   const [modal, setModal] = useState<Modal>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
@@ -537,6 +552,7 @@ export default function App() {
   const [latest, setLatest] = useState<SensorMeasurement | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
+  const [refreshingRecords, setRefreshingRecords] = useState(false);
   const name = user?.displayName || user?.email?.split("@")[0] || "Pesquisador";
   const initials = name.slice(0, 2).toUpperCase();
   const links: Array<[Section, ComponentType<{ size?: number }>]> = [
@@ -584,6 +600,7 @@ export default function App() {
     if (!online) return;
     void syncNow();
   }, [online]);
+  useEffect(() => { localStorage.setItem("activeSection", section); }, [section]);
   async function syncNow() {
     setSyncing(true);
     await syncPendingRecords();
@@ -594,6 +611,14 @@ export default function App() {
     localStorage.setItem("activeProjectId", value.id);
     const data = await loadRecords(value.id);
     setAreas(data.areas); setQuadrats(data.quadrats); setCollections(data.collections);
+  }
+  async function refreshRecords() {
+    if (!project) return;
+    setRefreshingRecords(true);
+    if (navigator.onLine) await syncPendingRecords();
+    const data = await loadRecords(project.id);
+    setAreas(data.areas); setQuadrats(data.quadrats); setCollections(data.collections);
+    setRefreshingRecords(false);
   }
   async function projectChanged(value: Project) {
     if (!user) return;
@@ -745,6 +770,8 @@ export default function App() {
             empty="Nenhuma área cadastrada."
             addLabel="Nova área"
             onAdd={() => setModal("area")}
+            onRefresh={refreshRecords}
+            refreshing={refreshingRecords}
           />
         )}
         {section === "Quadrats" && (
@@ -754,6 +781,8 @@ export default function App() {
             empty="Nenhum quadrat cadastrado."
             addLabel="Novo quadrat"
             onAdd={() => setModal("quadrat")}
+            onRefresh={refreshRecords}
+            refreshing={refreshingRecords}
           />
         )}
         {section === "Coletas" && (
@@ -764,6 +793,8 @@ export default function App() {
             addLabel="Nova coleta"
             onAdd={() => setModal("coleta")}
             onDelete={removeCollection}
+            onRefresh={refreshRecords}
+            refreshing={refreshingRecords}
           />
         )}
         {section === "Dados" && (

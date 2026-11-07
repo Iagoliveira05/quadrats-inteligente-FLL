@@ -110,6 +110,7 @@ Já foi feito:
 - Registro de espécies em texto e observações.
 - Histórico ordenado por data.
 - Finalização da coleta mesmo sem internet.
+- Botão de atualização manual em Áreas, Quadrats e Coletas para buscar registros inseridos por outros membros.
 
 Pode ser ampliado depois:
 
@@ -157,6 +158,7 @@ Já foi feito:
 - Formulários adaptados para celular.
 - Resumos empilhados em telas estreitas.
 - Suporte às áreas seguras do aparelho.
+- A seção ativa é preservada ao atualizar a página.
 
 ## Etapa 11 — Testes e publicação
 

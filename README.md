@@ -9,6 +9,7 @@ Sistema web para registrar dados ecológicos, receber temperatura e umidade de u
 - Projetos e equipes com código de convite.
 - Alternância entre vários projetos.
 - Áreas, quadrats e coletas compartilhados entre membros.
+- Atualização manual dos registros compartilhados e preservação da tela atual após refresh.
 - Registro do autor de cada novo item.
 - DHT11 conectado ao ESP32 por BLE.
 - Persistência offline com IndexedDB/Dexie.
