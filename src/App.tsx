@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Settings,
   Trash2,
+  Users,
   WifiOff,
   X,
 } from "lucide-react";
@@ -29,23 +30,27 @@ import {
   ensureProject,
   exportCollectionsCsv,
   loadRecords,
+  listProjects,
   saveRecord,
   syncPendingRecords,
   type Project,
   type RecordKind,
   type WorkspaceItem,
 } from "./services/data";
+import { TeamPage } from "./components/TeamPage";
 import "./App.css";
 import "./workspace.css";
 import "./record-details.css";
 import "./navigation-actions.css";
 import "./ble-persistence.css";
+import "./team-navigation.css";
 
 type Section =
   | "Inicio"
   | "Areas"
   | "Quadrats"
   | "Coletas"
+  | "Equipe"
   | "Dados"
   | "Tutorial";
 type Modal = "area" | "quadrat" | "coleta" | null;
@@ -347,6 +352,7 @@ function ItemsPage({
                     <small>
                       {new Date(Number(item.createdAt)).toLocaleString("pt-BR")}
                     </small>
+                    {typeof item.createdByName === "string" && <small>Registrado por {item.createdByName}</small>}
                     <div className="record-actions">
                       <button
                         className="details-button"
@@ -524,6 +530,7 @@ export default function App() {
   const [modal, setModal] = useState<Modal>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [areas, setAreas] = useState<WorkspaceItem[]>([]);
   const [quadrats, setQuadrats] = useState<WorkspaceItem[]>([]);
   const [collections, setCollections] = useState<WorkspaceItem[]>([]);
@@ -537,14 +544,21 @@ export default function App() {
     ["Areas", MapPin],
     ["Quadrats", Radio],
     ["Coletas", ClipboardPlus],
+    ["Equipe", Users],
     ["Dados", Settings],
     ["Tutorial", BookOpen],
   ];
   useEffect(() => {
     if (!user) return;
     let active = true;
-    void ensureProject(user).then(async (value) => {
+    void ensureProject(user).then(async (fallback) => {
       if (!active) return;
+      let available: Project[];
+      try { available = await listProjects(user.uid); } catch { available = [fallback]; }
+      if (!available.length) available = [fallback];
+      const savedId = localStorage.getItem("activeProjectId");
+      const value = available.find(item => item.id === savedId) ?? available[0];
+      setProjects(available);
       setProject(value);
       const data = await loadRecords(value.id);
       if (active) {
@@ -575,18 +589,31 @@ export default function App() {
     await syncPendingRecords();
     setSyncing(false);
   }
+  async function selectProject(value: Project) {
+    setProject(value);
+    localStorage.setItem("activeProjectId", value.id);
+    const data = await loadRecords(value.id);
+    setAreas(data.areas); setQuadrats(data.quadrats); setCollections(data.collections);
+  }
+  async function projectChanged(value: Project) {
+    if (!user) return;
+    const available = await listProjects(user.uid);
+    setProjects(available);
+    await selectProject(available.find(item => item.id === value.id) ?? value);
+  }
   async function save(item: WorkspaceItem) {
     if (!project || !modal) return;
+    const sharedItem = { ...item, createdBy: user?.uid ?? null, createdByName: name };
     const kind: RecordKind =
       modal === "area"
         ? "areas"
         : modal === "quadrat"
           ? "quadrats"
           : "collections";
-    await saveRecord(project.id, kind, item);
-    if (kind === "areas") setAreas((value) => [...value, item]);
-    if (kind === "quadrats") setQuadrats((value) => [...value, item]);
-    if (kind === "collections") setCollections((value) => [...value, item]);
+    await saveRecord(project.id, kind, sharedItem);
+    if (kind === "areas") setAreas((value) => [...value, sharedItem]);
+    if (kind === "quadrats") setQuadrats((value) => [...value, sharedItem]);
+    if (kind === "collections") setCollections((value) => [...value, sharedItem]);
   }
   async function removeCollection(item: WorkspaceItem) {
     if (!project) return;
@@ -787,6 +814,7 @@ export default function App() {
             </button>
           </section>
         )}
+        {section === "Equipe" && user && <TeamPage user={user} projects={projects} activeProject={project} onSelect={selectProject} onChanged={projectChanged} />}
         {section === "Tutorial" && <Tutorial />}
       </main>
       {modal && (

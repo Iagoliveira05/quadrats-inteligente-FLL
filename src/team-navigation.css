@@ -1,0 +1,1 @@
+@media(max-width:1023px){.sidebar nav{grid-template-columns:repeat(7,minmax(52px,1fr));overflow-x:auto;scrollbar-width:none}.sidebar nav::-webkit-scrollbar{display:none}}

@@ -8,11 +8,29 @@ Estas ações precisam ser feitas pelo proprietário do projeto Firebase:
 4. Crie o banco em **Firestore Database** e publique o conteúdo de `firestore.rules`.
 5. Verifique em **Project settings → Your apps** se o `firebaseConfig` em `firebase.js` corresponde ao aplicativo Web correto.
 
-O login Google já está implementado em `src/pages/Login.tsx`, usando `signInWithPopup`. Nenhuma chave privada deve ser adicionada ao repositório.
+O login Google usa popup iniciado diretamente pelo botão tanto em computadores quanto em dispositivos móveis. O domínio `quadrats-inteligente-fll.vercel.app` foi incluído nos domínios autorizados do Firebase em 7 de novembro de 2026. Nenhuma chave privada deve ser adicionada ao repositório.
+
+## Regras para projetos e equipes
+
+O arquivo `firestore.rules` foi atualizado para permitir:
+
+- criação de projetos pelo usuário autenticado;
+- leitura compartilhada entre membros;
+- entrada em uma equipe quando o usuário conhece o código exato;
+- criação de áreas, quadrats e coletas pelos membros;
+- exclusão e administração pelo responsável do projeto.
+
+Publique novamente as regras depois desta atualização:
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
+As regras de equipes foram publicadas no projeto `quadrats-inteligente-fll` em 7 de novembro de 2026. Execute o comando novamente sempre que `firestore.rules` for alterado.
 
 ## Atenção sobre hospedagem
 
-O `BrowserRouter` exige fallback para `index.html` no servidor. Ao publicar em Firebase Hosting, mantenha uma configuração de rewrite para `/**` apontando para `/index.html`.
+O site atual está no Vercel. O domínio `quadrats-inteligente-fll.vercel.app` precisa permanecer em **Authentication → Settings → Authorized domains**.
 
 ## Atenção sobre fotos
 

@@ -109,6 +109,8 @@ O payload enviado é UTF-8 em JSON:
 
 O aplicativo web precisa solicitar o dispositivo por ação explícita do usuário, conectar ao serviço e assinar a característica de notificações. Web Bluetooth exige navegador compatível e contexto seguro: `localhost` ou HTTPS.
 
+As leituras recebidas são associadas à coleta e ao projeto que estiver ativo no site. Antes de iniciar a coleta, confirme o projeto selecionado na tela **Equipe** para que os demais membros recebam o registro correto.
+
 ## 7. Teste sem o site
 
 Antes de testar no Quadrats, use um aplicativo BLE como nRF Connect para Android/iOS e confirme:

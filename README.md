@@ -1,75 +1,59 @@
-# React + TypeScript + Vite
+# Quadrats Inteligentes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema web para registrar dados ecológicos, receber temperatura e umidade de um ESP32 por Bluetooth e compartilhar coletas entre integrantes de um projeto.
 
-Currently, two official plugins are available:
+## Recursos atuais
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Login por e-mail/senha e Google.
+- Login Google adaptado para Android.
+- Projetos e equipes com código de convite.
+- Alternância entre vários projetos.
+- Áreas, quadrats e coletas compartilhados entre membros.
+- Registro do autor de cada novo item.
+- DHT11 conectado ao ESP32 por BLE.
+- Persistência offline com IndexedDB/Dexie.
+- Sincronização com Cloud Firestore.
+- Histórico, detalhes e exclusão confirmada de coletas.
+- Exportação CSV.
+- Interface responsiva para computador e celular.
 
-## React Compiler
+## Executar localmente
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Web Bluetooth funciona em contexto seguro: `localhost` durante o desenvolvimento ou HTTPS em produção.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Verificações
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run build
+npm run lint
 ```
+
+## Firebase
+
+O projeto usa a configuração Web presente em `firebase.js`. Depois de alterar `firestore.rules`, publique as regras:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+O domínio de produção deve constar nos domínios autorizados do Firebase Authentication.
+
+## ESP32 e DHT11
+
+- DHT11 `VCC` → `3V3`
+- DHT11 `GND` → `GND`
+- DHT11 `OUT` → `GPIO 4` ou `D4`
+
+O firmware está em `firmware/quadrat_ble/quadrat_ble.ino`.
+
+## Documentação
+
+- `docs/STATUS-IMPLEMENTACAO.md`: estado e próximas etapas.
+- `docs/FIREBASE-CONFIGURACAO.md`: configuração do Firebase.
+- `docs/EQUIPES-E-PROJETOS.md`: criação e entrada em equipes.
+- `docs/ESP32-CONEXAO.md`: montagem, firmware e testes do ESP32.

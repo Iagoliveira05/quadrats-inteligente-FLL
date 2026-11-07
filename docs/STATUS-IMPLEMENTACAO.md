@@ -21,6 +21,8 @@ Já foi feito:
 
 - Cadastro e login com e-mail e senha.
 - Login com Google.
+- Domínio do Vercel autorizado no Firebase Authentication.
+- Mensagens específicas para erros de domínio, provedor, rede e popup.
 - Persistência da sessão.
 - Logout e criação do perfil básico no Firestore.
 - Proteção das páginas internas.
@@ -39,13 +41,32 @@ Já foi feito:
 - Regras de segurança para usuários, projetos e subcoleções.
 - Projeto pessoal criado automaticamente para cada usuário.
 - Dados separados por projeto.
+- Criação de projetos adicionais com código de convite.
+- Entrada de membros por código.
+- Alternância entre projetos sem misturar registros.
+- Consulta compartilhada de áreas, quadrats e coletas por todos os membros.
+- Identificação do autor em novos registros.
 
-Pode ser ampliado depois:
+Papéis atuais:
 
-- Convites de equipe por e-mail.
-- Papéis personalizados além de administrador e membro.
+- Administrador: responsável pelo projeto e pelas exclusões.
+- Membro: visualiza e cria registros no projeto compartilhado.
 
-## Etapa 4 — Bluetooth e ESP32
+## Etapa 4 — Projetos e equipes
+
+Status: funcional.
+
+Já foi feito:
+
+- Tela de Equipe acessível pelo menu.
+- Criação de projeto com nome e descrição.
+- Código de convite copiável.
+- Entrada em projeto existente pelo código.
+- Lista dos membros e indicação do administrador.
+- Lista de projetos do usuário e seleção do projeto ativo.
+- Dados recarregados de acordo com o projeto selecionado.
+
+## Etapa 5 — Bluetooth e ESP32
 
 Status: funcional para o DHT11.
 
@@ -64,7 +85,7 @@ Pode ser ampliado depois:
 - Tentativa assistida de reconexão.
 - Novos sensores, quando o hardware for definido.
 
-## Etapa 5 — Áreas e quadrats
+## Etapa 6 — Áreas e quadrats
 
 Status: funcional.
 
@@ -76,7 +97,7 @@ Já foi feito:
 - Cadastro e listagem de quadrats.
 - Persistência local e sincronização com o Firestore.
 
-## Etapa 6 — Coletas ecológicas
+## Etapa 7 — Coletas ecológicas
 
 Status: funcional para a primeira versão.
 
@@ -94,7 +115,7 @@ Pode ser ampliado depois:
 - Edição e exclusão de coletas.
 - Fotografias associadas às espécies.
 
-## Etapa 7 — Offline e sincronização
+## Etapa 8 — Offline e sincronização
 
 Status: funcional.
 
@@ -107,7 +128,7 @@ Já foi feito:
 - Botão de sincronização manual.
 - Aviso visual de modo offline.
 
-## Etapa 8 — Dados e exportação
+## Etapa 9 — Dados e exportação
 
 Status: funcional para CSV.
 
@@ -123,7 +144,7 @@ Pode ser ampliado depois:
 - Exportação XLSX e PDF.
 - Mapa interativo com todas as áreas.
 
-## Etapa 9 — Interface mobile
+## Etapa 10 — Interface mobile
 
 Status: funcional e revisada.
 
@@ -135,7 +156,7 @@ Já foi feito:
 - Resumos empilhados em telas estreitas.
 - Suporte às áreas seguras do aparelho.
 
-## Etapa 10 — Testes e publicação
+## Etapa 11 — Testes e publicação
 
 Status: parcialmente concluída.
 
@@ -144,6 +165,7 @@ Já foi feito:
 - Compilação TypeScript e build de produção validados.
 - Fallback de SPA configurado para o Firebase Hosting.
 - Regras do Firestore mantidas no repositório.
+- Regras de projetos e equipes publicadas no Firebase em 7 de novembro de 2026.
 
 Ainda precisa de validação física:
 
@@ -155,7 +177,8 @@ Ainda precisa de validação física:
 ## Próxima ordem recomendada
 
 1. Testar cadastro, login Google e sincronização em duas sessões diferentes.
-2. Testar o DHT11 conectado ao D4 do ESP32.
-3. Criar uma área, um quadrat e uma coleta sem internet.
-4. Voltar à internet e confirmar a sincronização no Firestore.
-5. Depois dos testes de campo, decidir se fotos, XLSX, PDF e mapa avançado realmente serão necessários.
+2. Criar um projeto, copiar o código e entrar nele com uma segunda conta.
+3. Confirmar que as duas contas visualizam os mesmos registros.
+4. Testar o DHT11 conectado ao D4 do ESP32.
+5. Criar uma área, um quadrat e uma coleta sem internet.
+6. Voltar à internet e confirmar a sincronização no Firestore.
