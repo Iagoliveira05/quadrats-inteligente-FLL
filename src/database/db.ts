@@ -6,6 +6,7 @@ export type LocalRecord = {
   projectId: string
   payload: Record<string, unknown>
   synced: boolean
+  deleted?: boolean
   createdAt: number
 }
 
@@ -30,4 +31,8 @@ export async function getPendingRecords() {
 
 export async function markRecordSynced(id: string) {
   await localDb.records.update(id, { synced: true })
+}
+
+export async function getProjectRecords(projectId: string) {
+  return localDb.records.where('projectId').equals(projectId).toArray()
 }
