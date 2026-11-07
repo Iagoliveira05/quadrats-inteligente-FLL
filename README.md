@@ -43,6 +43,10 @@ firebase deploy --only firestore:rules
 
 O domínio de produção deve constar nos domínios autorizados do Firebase Authentication.
 
+## Vercel e rotas
+
+O arquivo `vercel.json` redireciona rotas do React, como `/login` e `/cadastro`, para `index.html`. Esse fallback evita erro 404 ao atualizar a página ou abrir uma rota diretamente.
+
 ## ESP32 e DHT11
 
 - DHT11 `VCC` → `3V3`

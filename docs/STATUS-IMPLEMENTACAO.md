@@ -165,7 +165,7 @@ Status: parcialmente concluída.
 Já foi feito:
 
 - Compilação TypeScript e build de produção validados.
-- Fallback de SPA configurado para o Firebase Hosting.
+- Fallback de SPA configurado no Vercel para impedir 404 em rotas diretas.
 - Regras do Firestore mantidas no repositório.
 - Regras de projetos e equipes publicadas no Firebase em 7 de novembro de 2026.
 
