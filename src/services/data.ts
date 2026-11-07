@@ -24,14 +24,17 @@ export async function ensureProject(user: User): Promise<Project> {
 }
 
 export async function createProject(user: User, name: string, description: string): Promise<Project> {
-  const id = crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const randomValues = crypto.getRandomValues(new Uint8Array(8))
+  const id = Array.from(randomValues, value => alphabet[value % alphabet.length]).join('')
   const project: Project = { id, name: name.trim(), description: description.trim(), adminId: user.uid, memberIds: [user.uid], memberProfiles: { [user.uid]: memberProfile(user) } }
   await setDoc(doc(db, 'projects', id), { ...project, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
   return project
 }
 
 export async function joinProject(user: User, rawCode: string): Promise<Project> {
-  const code = rawCode.trim()
+  const typedCode = rawCode.trim()
+  const code = typedCode.length === 8 ? typedCode.toUpperCase() : typedCode
   if (!code) throw new Error('Informe o código do projeto.')
   const reference = doc(db, 'projects', code)
   const snapshot = await getDoc(reference)

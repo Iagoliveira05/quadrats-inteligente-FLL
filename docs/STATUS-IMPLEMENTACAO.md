@@ -61,6 +61,7 @@ Já foi feito:
 - Tela de Equipe acessível pelo menu.
 - Criação de projeto com nome e descrição.
 - Código de convite copiável.
+- Códigos novos com 8 letras e números, sem caracteres visualmente ambíguos.
 - Entrada em projeto existente pelo código.
 - Lista dos membros e indicação do administrador.
 - Lista de projetos do usuário e seleção do projeto ativo.
