@@ -10,6 +10,12 @@ export type WorkspaceItem = { id: string; name: string; createdAt: number; [key:
 
 const memberProfile = (user: User): ProjectMember => ({ displayName: user.displayName || 'Membro', email: user.email || '' })
 
+function createProjectCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const randomValues = crypto.getRandomValues(new Uint8Array(8))
+  return Array.from(randomValues, value => alphabet[value % alphabet.length]).join('')
+}
+
 export async function listProjects(userId: string): Promise<Project[]> {
   const snapshot = await getDocs(query(collection(db, 'projects'), where('memberIds', 'array-contains', userId)))
   return snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }) as Project)
@@ -17,16 +23,14 @@ export async function listProjects(userId: string): Promise<Project[]> {
 
 export async function ensureProject(user: User): Promise<Project> {
   try { const projects = await listProjects(user.uid); if (projects.length) return projects[0] } catch { /* Continua com projeto pessoal offline. */ }
-  const id = `project-${user.uid}`
+  const id = createProjectCode()
   const project: Project = { id, name: 'Projeto principal', description: 'Monitoramento ecológico', adminId: user.uid, memberIds: [user.uid], memberProfiles: { [user.uid]: memberProfile(user) } }
   try { await setDoc(doc(db, 'projects', id), { ...project, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true }) } catch { /* Projeto disponível localmente. */ }
   return project
 }
 
 export async function createProject(user: User, name: string, description: string): Promise<Project> {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const randomValues = crypto.getRandomValues(new Uint8Array(8))
-  const id = Array.from(randomValues, value => alphabet[value % alphabet.length]).join('')
+  const id = createProjectCode()
   const project: Project = { id, name: name.trim(), description: description.trim(), adminId: user.uid, memberIds: [user.uid], memberProfiles: { [user.uid]: memberProfile(user) } }
   await setDoc(doc(db, 'projects', id), { ...project, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
   return project

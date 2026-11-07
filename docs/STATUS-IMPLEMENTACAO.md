@@ -62,6 +62,7 @@ Já foi feito:
 - Criação de projeto com nome e descrição.
 - Código de convite copiável.
 - Códigos novos com 8 letras e números, sem caracteres visualmente ambíguos.
+- Todos os projetos antigos migrados de `project-UID` ou IDs longos para códigos de 8 caracteres, com preservação dos registros.
 - Entrada em projeto existente pelo código.
 - Lista dos membros e indicação do administrador.
 - Lista de projetos do usuário e seleção do projeto ativo.

@@ -38,6 +38,8 @@ O código funciona como convite. Ele deve ser enviado somente aos participantes 
 
 Os códigos novos combinam letras maiúsculas e números. Para evitar erros de leitura, não são utilizados `O`, `0`, `I` e `1`.
 
+Projetos pessoais também usam esse mesmo padrão. Todos os projetos legados com `project-UID` ou IDs automáticos longos foram migrados para códigos de 8 caracteres em 7 de novembro de 2026, preservando os registros existentes.
+
 ## Estrutura no Firestore
 
 ```text
