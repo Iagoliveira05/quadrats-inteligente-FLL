@@ -39,6 +39,7 @@ import "./App.css";
 import "./workspace.css";
 import "./record-details.css";
 import "./navigation-actions.css";
+import "./ble-persistence.css";
 
 type Section =
   | "Inicio"
@@ -671,9 +672,11 @@ export default function App() {
             voltar.
           </div>
         )}
+        <div className={section === "Inicio" ? "" : "ble-preserved-hidden"}>
+          <ConnectionPanel onReading={setLatest} />
+        </div>
         {section === "Inicio" && (
           <>
-            <ConnectionPanel onReading={setLatest} />
             <section className="hero">
               <span className="eyebrow">MONITORAMENTO ECOLÓGICO</span>
               <h2>

@@ -10,10 +10,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  useEffect(() => onAuthStateChanged(auth, async (nextUser) => {
+  useEffect(() => onAuthStateChanged(auth, (nextUser) => {
     setUser(nextUser)
-    if (nextUser) await setDoc(doc(db, 'users', nextUser.uid), { uid: nextUser.uid, email: nextUser.email, displayName: nextUser.displayName ?? '', updatedAt: serverTimestamp() }, { merge: true })
     setLoading(false)
+    if (nextUser) void setDoc(doc(db, 'users', nextUser.uid), { uid: nextUser.uid, email: nextUser.email, displayName: nextUser.displayName ?? '', updatedAt: serverTimestamp() }, { merge: true }).catch(() => undefined)
   }), [])
   const value = useMemo(() => ({ user, loading, logout: () => auth.signOut() }), [user, loading])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
