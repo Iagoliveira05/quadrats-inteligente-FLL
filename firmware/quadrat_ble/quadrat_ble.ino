@@ -47,7 +47,7 @@ String buildMeasurement() {
   const bool airValid = !isnan(airTemperature) && !isnan(airHumidity);
   // O HW-038 usa a saída digital: LOW normalmente indica solo úmido.
   const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
-  const bool soilMoisture = soilMoistureRaw == LOW;
+  const int waterLevelPercent = soilMoistureRaw == LOW ? 100 : 0;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -55,7 +55,7 @@ String buildMeasurement() {
   json += "\"uptimeMs\":" + String(millis()) + ",";
   json += "\"airTemperature\":" + (airValid ? String(airTemperature, 2) : "null") + ",";
   json += "\"airHumidity\":" + (airValid ? String(airHumidity, 2) : "null") + ",";
-  json += "\"soilMoisture\":" + String(soilMoisture ? "true" : "false") + ",";
+  json += "\"waterLevelPercent\":" + String(waterLevelPercent) + ",";
   json += "\"soilMoistureRaw\":" + String(soilMoistureRaw) + ",";
   json += "\"latitude\":null,";
   json += "\"longitude\":null,";
