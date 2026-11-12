@@ -138,8 +138,8 @@ function ConnectionPanel({
               <strong>{reading.airHumidity ?? "--"}%</strong>
             </div>
             <div>
-              <small>Umidade do solo</small>
-              <strong>{reading.soilMoisture == null ? "--" : reading.soilMoisture ? "Úmido" : "Seco"}</strong>
+              <small>Nível de água</small>
+              <strong>{reading.soilMoisture == null ? "--" : reading.soilMoisture ? "Água detectada" : "Sem água"}</strong>
             </div>
           </div>
         ) : (
@@ -276,7 +276,7 @@ function RecordModal({
                 Umidade: <b>{latest?.airHumidity ?? "--"}%</b>
               </span>
               <span>
-                Solo: <b>{latest?.soilMoisture == null ? "--" : latest.soilMoisture ? "Úmido" : "Seco"}</b>
+                Nível de água: <b>{latest?.soilMoisture == null ? "--" : latest.soilMoisture ? "Água detectada" : "Sem água"}</b>
               </span>
             </div>
           </>
