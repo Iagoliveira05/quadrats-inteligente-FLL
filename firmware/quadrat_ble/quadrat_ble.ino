@@ -16,6 +16,8 @@ static const char* MEASUREMENT_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 // Pinos sugeridos. Confira o arquivo docs/ESP32-CONEXAO.md antes de ligar.
 constexpr uint8_t DHT_PIN = 4;
 constexpr uint8_t DHT_TYPE = DHT11;
+constexpr uint8_t SOIL_MOISTURE_PIN = 18;
+constexpr uint8_t CONNECTION_LED_PIN = 21;
 constexpr unsigned long MEASUREMENT_INTERVAL_MS = 5000;
 
 DHT dht(DHT_PIN, DHT_TYPE);
@@ -27,11 +29,13 @@ unsigned long lastMeasurement = 0;
 class ServerCallbacks final : public BLEServerCallbacks {
   void onConnect(BLEServer*) override {
     clientConnected = true;
+    digitalWrite(CONNECTION_LED_PIN, HIGH);
     Serial.println("BLE conectado");
   }
 
   void onDisconnect(BLEServer* server) override {
     clientConnected = false;
+    digitalWrite(CONNECTION_LED_PIN, LOW);
     Serial.println("BLE desconectado; anunciando novamente");
     server->startAdvertising();
   }
@@ -41,6 +45,9 @@ String buildMeasurement() {
   const float airTemperature = dht.readTemperature();
   const float airHumidity = dht.readHumidity();
   const bool airValid = !isnan(airTemperature) && !isnan(airHumidity);
+  // O HW-038 usa a saída digital: LOW normalmente indica solo úmido.
+  const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
+  const bool soilMoisture = soilMoistureRaw == LOW;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -48,6 +55,8 @@ String buildMeasurement() {
   json += "\"uptimeMs\":" + String(millis()) + ",";
   json += "\"airTemperature\":" + (airValid ? String(airTemperature, 2) : "null") + ",";
   json += "\"airHumidity\":" + (airValid ? String(airHumidity, 2) : "null") + ",";
+  json += "\"soilMoisture\":" + String(soilMoisture ? "true" : "false") + ",";
+  json += "\"soilMoistureRaw\":" + String(soilMoistureRaw) + ",";
   json += "\"latitude\":null,";
   json += "\"longitude\":null,";
   json += "\"gpsValid\":false";
@@ -57,6 +66,9 @@ String buildMeasurement() {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(CONNECTION_LED_PIN, OUTPUT);
+  digitalWrite(CONNECTION_LED_PIN, LOW);
+  pinMode(SOIL_MOISTURE_PIN, INPUT_PULLUP);
   dht.begin();
 
   BLEDevice::init(DEVICE_NAME);

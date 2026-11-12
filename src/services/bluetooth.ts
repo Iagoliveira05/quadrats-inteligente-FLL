@@ -1,7 +1,7 @@
 export const QUADRAT_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'
 export const QUADRAT_MEASUREMENT_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 
-export type SensorMeasurement = { deviceId?: string; sequence?: number; uptimeMs?: number; airTemperature?: number | null; airHumidity?: number | null; latitude?: number | null; longitude?: number | null; gpsValid?: boolean; receivedAt: string }
+export type SensorMeasurement = { deviceId?: string; sequence?: number; uptimeMs?: number; airTemperature?: number | null; airHumidity?: number | null; soilMoisture?: boolean | null; soilMoistureRaw?: number | null; latitude?: number | null; longitude?: number | null; gpsValid?: boolean; receivedAt: string }
 type BluetoothCharacteristic = { value: DataView; addEventListener: (name: string, listener: EventListener) => void; removeEventListener: (name: string, listener: EventListener) => void; startNotifications: () => Promise<unknown> }
 type BluetoothDevice = { name?: string; addEventListener: (name: string, listener: EventListener) => void; removeEventListener: (name: string, listener: EventListener) => void; gatt?: { connect: () => Promise<{ getPrimaryService: (uuid: string) => Promise<{ getCharacteristic: (uuid: string) => Promise<BluetoothCharacteristic> }> }>; disconnect: () => void } }
 type BluetoothApi = { requestDevice: (options: { filters: Array<{ services: string[] }> }) => Promise<BluetoothDevice> }
@@ -22,7 +22,8 @@ export async function connectQuadrat(onMeasurement: (measurement: SensorMeasurem
       const parsed = JSON.parse(new TextDecoder().decode(value.buffer)) as Omit<SensorMeasurement, 'receivedAt'>
       const temperatureValid = parsed.airTemperature === null || typeof parsed.airTemperature === 'number'
       const humidityValid = parsed.airHumidity === null || (typeof parsed.airHumidity === 'number' && parsed.airHumidity >= 0 && parsed.airHumidity <= 100)
-      if (temperatureValid && humidityValid) onMeasurement({ ...parsed, receivedAt: new Date().toISOString() })
+      const soilMoistureValid = parsed.soilMoisture === null || typeof parsed.soilMoisture === 'boolean'
+      if (temperatureValid && humidityValid && soilMoistureValid) onMeasurement({ ...parsed, receivedAt: new Date().toISOString() })
     } catch { /* Pacotes incompletos são ignorados. */ }
   }
   const disconnected = () => onDisconnect?.()
