@@ -36,6 +36,18 @@ service cloud.firestore {
         && request.resource.data.memberProfiles[request.auth.uid].email == request.auth.token.email;
     }
 
+    function saindoDoProjeto() {
+      return autenticado()
+        && request.auth.uid in resource.data.memberIds
+        && resource.data.adminId != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['memberIds', 'memberProfiles', 'updatedAt'])
+        && request.resource.data.memberIds.toSet()
+          == resource.data.memberIds.toSet().difference([request.auth.uid].toSet())
+        && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
+        && !request.resource.data.memberProfiles.keys().hasAny([request.auth.uid]);
+    }
+
     match /users/{userId} {
       allow create: if souUsuario(userId);
       allow read, update, delete: if souUsuario(userId);
@@ -50,7 +62,7 @@ service cloud.firestore {
       // exato. Listagens continuam limitadas aos projetos dos quais é membro.
       allow get: if autenticado();
       allow list: if autenticado() && request.auth.uid in resource.data.memberIds;
-      allow update: if administradorDoProjeto(projectId) || entrandoNoProjeto();
+      allow update: if administradorDoProjeto(projectId) || entrandoNoProjeto() || saindoDoProjeto();
       allow delete: if administradorDoProjeto(projectId);
     }
 

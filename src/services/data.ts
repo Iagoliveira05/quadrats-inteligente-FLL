@@ -1,4 +1,4 @@
-import { arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import { arrayRemove, arrayUnion, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import type { User } from 'firebase/auth'
 import { db } from '../../firebase'
 import { getPendingRecords, getProjectRecords, markRecordSynced, saveOfflineRecord, type LocalRecord } from '../database/db'
@@ -50,6 +50,28 @@ export async function joinProject(user: User, rawCode: string): Promise<Project>
     project.memberProfiles = { ...project.memberProfiles, [user.uid]: memberProfile(user) }
   }
   return project
+}
+
+export async function renameProject(projectId: string, name: string) {
+  const normalizedName = name.trim()
+  if (!normalizedName) throw new Error('Informe o nome do projeto.')
+  await updateDoc(doc(db, 'projects', projectId), { name: normalizedName, updatedAt: serverTimestamp() })
+}
+
+export async function leaveProject(projectId: string, userId: string) {
+  await updateDoc(doc(db, 'projects', projectId), {
+    memberIds: arrayRemove(userId),
+    [`memberProfiles.${userId}`]: deleteField(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteProject(projectId: string) {
+  for (const kind of ['areas', 'quadrats', 'collections']) {
+    const snapshot = await getDocs(collection(db, 'projects', projectId, kind))
+    await Promise.all(snapshot.docs.map(entry => deleteDoc(entry.ref)))
+  }
+  await deleteDoc(doc(db, 'projects', projectId))
 }
 
 export async function loadRecords(projectId: string): Promise<Record<RecordKind, WorkspaceItem[]>> {

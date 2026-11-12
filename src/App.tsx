@@ -654,6 +654,14 @@ export default function App() {
     setProjects(available);
     await selectProject(available.find(item => item.id === value.id) ?? value);
   }
+  async function projectRemoved(projectId: string) {
+    if (!user) return;
+    let available = await listProjects(user.uid);
+    if (!available.length) available = [await ensureProject(user)];
+    setProjects(available);
+    const next = available.find(item => item.id !== projectId) ?? available[0];
+    await selectProject(next);
+  }
   async function save(item: WorkspaceItem) {
     if (!project || !modal) return;
     const sharedItem = { ...item, createdBy: user?.uid ?? null, createdByName: name };
@@ -873,7 +881,7 @@ export default function App() {
             </button>
           </section>
         )}
-        {section === "Equipe" && user && <TeamPage user={user} projects={projects} activeProject={project} onSelect={selectProject} onChanged={projectChanged} />}
+        {section === "Equipe" && user && <TeamPage user={user} projects={projects} activeProject={project} onSelect={selectProject} onChanged={projectChanged} onRemoved={projectRemoved} />}
         {section === "Tutorial" && <Tutorial />}
       </main>
       {modal && (
