@@ -119,24 +119,26 @@ function ConnectionPanel({
           {deviceName}
         </div>
         {error && <p className="ble-error">{error}</p>}
-        <button
-          className="connect-button"
-          disabled={!bluetoothSupported() || state === "searching" || state === "connected"}
-          onClick={() => void connect()}
-        >
-          <Bluetooth size={17} />
-          {state === "searching"
-            ? "Escolha o ESP32..."
-            : state === "connected"
-              ? "ESP32 conectado"
-              : "Procurar ESP32"}
-        </button>
-        {state === "connected" && (
-          <button className="connect-button" onClick={disconnect}>
-            <WifiOff size={17} />
-            Desconectar ESP32
+        <div className="connection-actions">
+          <button
+            className="connect-button"
+            disabled={!bluetoothSupported() || state === "searching" || state === "connected"}
+            onClick={() => void connect()}
+          >
+            <Bluetooth size={17} />
+            {state === "searching"
+              ? "Escolha o ESP32..."
+              : state === "connected"
+                ? "ESP32 conectado"
+                : "Procurar ESP32"}
           </button>
-        )}
+          {state === "connected" && (
+            <button className="connect-button" onClick={disconnect}>
+              <WifiOff size={17} />
+              Desconectar ESP32
+            </button>
+          )}
+        </div>
         {!bluetoothSupported() && (
           <p className="ble-warning">
             Use Chrome ou Edge em HTTPS ou localhost.
