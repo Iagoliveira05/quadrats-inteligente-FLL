@@ -45,9 +45,9 @@ String buildMeasurement() {
   const float airTemperature = dht.readTemperature();
   const float airHumidity = dht.readHumidity();
   const bool airValid = !isnan(airTemperature) && !isnan(airHumidity);
-  // O HW-038 usa a saída digital: LOW normalmente indica solo úmido.
+  // Neste módulo HW-038, HIGH indica que há água no sensor.
   const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
-  const int waterLevelPercent = soilMoistureRaw == LOW ? 100 : 0;
+  const int waterLevelPercent = soilMoistureRaw == HIGH ? 100 : 0;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -68,7 +68,7 @@ void setup() {
   Serial.begin(115200);
   pinMode(CONNECTION_LED_PIN, OUTPUT);
   digitalWrite(CONNECTION_LED_PIN, LOW);
-  pinMode(SOIL_MOISTURE_PIN, INPUT_PULLUP);
+  pinMode(SOIL_MOISTURE_PIN, INPUT);
   dht.begin();
 
   BLEDevice::init(DEVICE_NAME);

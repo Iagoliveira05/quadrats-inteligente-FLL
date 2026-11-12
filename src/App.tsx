@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   Bluetooth,
   BookOpen,
@@ -67,7 +67,10 @@ function ConnectionPanel({
   const [deviceName, setDeviceName] = useState("Nenhum dispositivo conectado");
   const [reading, setReading] = useState<SensorMeasurement | null>(null);
   const [error, setError] = useState("");
+  const connectionRef = useRef<Awaited<ReturnType<typeof connectQuadrat>> | null>(null);
+  useEffect(() => () => connectionRef.current?.disconnect(), []);
   async function connect() {
+    if (connectionRef.current || state === "searching") return;
     setState("searching");
     setError("");
     try {
@@ -77,16 +80,28 @@ function ConnectionPanel({
           onReading(value);
         },
         () => {
+          connectionRef.current = null;
           setState("idle");
           setDeviceName("ESP32 desconectado");
+          setReading(null);
         },
       );
+      connectionRef.current = result;
       setDeviceName(result.device.name || "ESP32 conectado");
       setState("connected");
     } catch (cause) {
       setState("error");
       setError(cause instanceof Error ? cause.message : "Falha ao conectar.");
     }
+  }
+  function disconnect() {
+    const connection = connectionRef.current;
+    connectionRef.current = null;
+    connection?.disconnect();
+    setState("idle");
+    setDeviceName("ESP32 desconectado");
+    setReading(null);
+    setError("");
   }
   return (
     <section className="connection-panel">
@@ -106,16 +121,22 @@ function ConnectionPanel({
         {error && <p className="ble-error">{error}</p>}
         <button
           className="connect-button"
-          disabled={!bluetoothSupported() || state === "searching"}
+          disabled={!bluetoothSupported() || state === "searching" || state === "connected"}
           onClick={() => void connect()}
         >
           <Bluetooth size={17} />
           {state === "searching"
             ? "Escolha o ESP32..."
             : state === "connected"
-              ? "Conectar outro ESP32"
+              ? "ESP32 conectado"
               : "Procurar ESP32"}
         </button>
+        {state === "connected" && (
+          <button className="connect-button" onClick={disconnect}>
+            <WifiOff size={17} />
+            Desconectar ESP32
+          </button>
+        )}
         {!bluetoothSupported() && (
           <p className="ble-warning">
             Use Chrome ou Edge em HTTPS ou localhost.
