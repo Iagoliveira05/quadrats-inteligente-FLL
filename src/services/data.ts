@@ -119,9 +119,9 @@ export async function deleteRecord(projectId: string, kind: RecordKind, itemId: 
 }
 
 export function exportCollectionsCsv(items: WorkspaceItem[]) {
-  const headers = ['id', 'nome', 'data', 'temperatura_ar_c', 'umidade_ar_percentual', 'temperatura_solo_c', 'umidade_solo', 'observacoes']
+  const headers = ['id', 'nome', 'data', 'temperatura_ar_c', 'umidade_ar_percentual', 'temperatura_solo_c', 'umidade_solo_percentual', 'observacoes']
   const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
-  const rows = items.map(item => [item.id, item.name, item.createdAt, item.temperature, item.humidity, item.soilTemperature, item.soilMoisture === true ? 'Úmido' : item.soilMoisture === false ? 'Seco' : '', item.notes].map(escape).join(','))
+  const rows = items.map(item => [item.id, item.name, item.createdAt, item.temperature, item.humidity, item.soilTemperature, item.soilMoisturePercent ?? (item.soilMoisture === true ? 100 : item.soilMoisture === false ? 0 : ''), item.notes].map(escape).join(','))
   const blob = new Blob(['\uFEFF' + [headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' })
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `coletas-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href)
 }

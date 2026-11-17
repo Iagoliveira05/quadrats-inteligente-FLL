@@ -166,7 +166,7 @@ function ConnectionPanel({
             </div>
             <div>
               <small>Umidade do solo</small>
-              <strong>{reading.soilMoisture == null ? "--" : reading.soilMoisture ? "Úmido" : "Seco"}</strong>
+              <strong>{reading.soilMoisturePercent == null ? "--" : `${reading.soilMoisturePercent}%`}</strong>
             </div>
           </div>
         ) : (
@@ -226,6 +226,7 @@ function RecordModal({
       humidity: latest?.airHumidity ?? null,
       soilTemperature: latest?.soilTemperature ?? null,
       soilMoisture: latest?.soilMoisture ?? null,
+      soilMoisturePercent: latest?.soilMoisturePercent ?? null,
       deviceId: latest?.deviceId ?? null,
       createdAt: Date.now(),
     });
@@ -308,7 +309,7 @@ function RecordModal({
                 Temperatura do solo: <b>{latest?.soilTemperature ?? "--"} °C</b>
               </span>
               <span>
-                Umidade do solo: <b>{latest?.soilMoisture == null ? "--" : latest.soilMoisture ? "Úmido" : "Seco"}</b>
+                Umidade do solo: <b>{latest?.soilMoisturePercent == null ? "--" : `${latest.soilMoisturePercent}%`}</b>
               </span>
             </div>
           </>
@@ -442,9 +443,13 @@ function ItemsPage({
                             <b>Temperatura do solo:</b> {item.soilTemperature} °C
                           </p>
                         )}
-                        {typeof item.soilMoisture === "boolean" && (
+                        {typeof item.soilMoisturePercent === "number" ? (
                           <p>
-                            <b>Umidade do solo:</b> {item.soilMoisture ? "Úmido" : "Seco"}
+                            <b>Umidade do solo:</b> {item.soilMoisturePercent}%
+                          </p>
+                        ) : typeof item.soilMoisture === "boolean" && (
+                          <p>
+                            <b>Umidade do solo:</b> {item.soilMoisture ? "100%" : "0%"}
                           </p>
                         )}
                         {typeof item.deviceId === "string" && item.deviceId && (

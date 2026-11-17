@@ -62,11 +62,15 @@ String buildMeasurement() {
     soilTemperatureSensor.getTempCByIndex(0);
   const bool soilTemperatureValid =
     soilTemperature != DEVICE_DISCONNECTED_C && !isnan(soilTemperature);
+  if (!soilTemperatureValid) {
+    Serial.println("DS18B20 sem leitura. Verifique o sensor, o GPIO 17 e o resistor de 4,7 kΩ.");
+  }
 
   // O YL-69 está ligado pela saída digital D0 no GPIO 18.
   // Ajuste o potenciômetro do módulo para definir o limiar seco/úmido.
   const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
   const bool soilMoisture = soilMoistureRaw == HIGH;
+  const int soilMoisturePercent = soilMoisture ? 100 : 0;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -76,6 +80,7 @@ String buildMeasurement() {
   json += "\"airHumidity\":" + numberOrNull(airHumidity, airHumidityValid) + ",";
   json += "\"soilTemperature\":" + numberOrNull(soilTemperature, soilTemperatureValid) + ",";
   json += "\"soilMoisture\":" + String(soilMoisture ? "true" : "false") + ",";
+  json += "\"soilMoisturePercent\":" + String(soilMoisturePercent) + ",";
   json += "\"soilMoistureRaw\":" + String(soilMoistureRaw) + ",";
   json += "\"latitude\":null,";
   json += "\"longitude\":null,";
@@ -91,6 +96,8 @@ void setup() {
   pinMode(SOIL_MOISTURE_PIN, INPUT);
   dht.begin();
   soilTemperatureSensor.begin();
+  soilTemperatureSensor.setResolution(10);
+  soilTemperatureSensor.setWaitForConversion(true);
 
   BLEDevice::init(DEVICE_NAME);
   BLEServer* server = BLEDevice::createServer();
@@ -113,6 +120,11 @@ void setup() {
   Serial.println("Quadrat Inteligente iniciado");
   Serial.print("Device ID: ");
   Serial.println(DEVICE_ID);
+  Serial.print("DS18B20 encontrado(s): ");
+  Serial.println(soilTemperatureSensor.getDeviceCount());
+  if (soilTemperatureSensor.getDeviceCount() == 0) {
+    Serial.println("Conecte o DS18B20 ao GPIO 17 com resistor de 4,7 kΩ entre DATA e 3V3.");
+  }
   Serial.println("Aguardando conexão BLE...");
 }
 
