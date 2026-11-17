@@ -19,9 +19,15 @@ static const char* MEASUREMENT_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 constexpr uint8_t DHT_PIN = 4;                 // DHT11: temperatura e umidade do ar.
 constexpr uint8_t DHT_TYPE = DHT11;
 constexpr uint8_t SOIL_TEMPERATURE_PIN = 17;  // DS18B20: temperatura do solo.
-constexpr uint8_t SOIL_MOISTURE_PIN = 18;     // YL-69: saída digital (D0).
+constexpr uint8_t SOIL_MOISTURE_PIN = 15;     // YL-69: saída analógica (AO).
 constexpr uint8_t CONNECTION_LED_PIN = 21;    // LED verde: conexão BLE ativa.
 constexpr unsigned long MEASUREMENT_INTERVAL_MS = 5000;
+
+// Calibre estes limites com os valores exibidos no Monitor Serial.
+// Primeiro deixe a sonda seca; depois, coloque-a em solo completamente úmido.
+constexpr int SOIL_MOISTURE_DRY_RAW = 3200;
+constexpr int SOIL_MOISTURE_WET_RAW = 1300;
+constexpr uint8_t SOIL_MOISTURE_SAMPLES = 10;
 
 DHT dht(DHT_PIN, DHT_TYPE);
 OneWire soilTemperatureWire(SOIL_TEMPERATURE_PIN);
@@ -51,6 +57,15 @@ String numberOrNull(float value, bool valid) {
   return valid ? String(value, 2) : "null";
 }
 
+int readSoilMoistureRaw() {
+  uint32_t total = 0;
+  for (uint8_t sample = 0; sample < SOIL_MOISTURE_SAMPLES; sample++) {
+    total += analogRead(SOIL_MOISTURE_PIN);
+    delay(5);
+  }
+  return total / SOIL_MOISTURE_SAMPLES;
+}
+
 String buildMeasurement() {
   const float airTemperature = dht.readTemperature();
   const float airHumidity = dht.readHumidity();
@@ -66,11 +81,21 @@ String buildMeasurement() {
     Serial.println("DS18B20 sem leitura. Verifique o sensor, o GPIO 17 e o resistor de 4,7 kΩ.");
   }
 
-  // O YL-69 está ligado pela saída digital D0 no GPIO 18.
-  // Ajuste o potenciômetro do módulo para definir o limiar seco/úmido.
-  const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
-  const bool soilMoisture = soilMoistureRaw == HIGH;
-  const int soilMoisturePercent = soilMoisture ? 100 : 0;
+  // O YL-69 está ligado pela saída analógica AO no GPIO 15.
+  // Em geral, a leitura diminui à medida que o solo fica mais úmido.
+  const int soilMoistureRaw = readSoilMoistureRaw();
+  const int soilMoisturePercent = constrain(
+    map(
+      soilMoistureRaw,
+      SOIL_MOISTURE_DRY_RAW,
+      SOIL_MOISTURE_WET_RAW,
+      0,
+      100
+    ),
+    0,
+    100
+  );
+  const bool soilMoisture = soilMoisturePercent >= 50;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -93,7 +118,8 @@ void setup() {
   Serial.begin(115200);
   pinMode(CONNECTION_LED_PIN, OUTPUT);
   digitalWrite(CONNECTION_LED_PIN, LOW);
-  pinMode(SOIL_MOISTURE_PIN, INPUT);
+  analogReadResolution(12);
+  analogSetPinAttenuation(SOIL_MOISTURE_PIN, ADC_11db);
   dht.begin();
   soilTemperatureSensor.begin();
   soilTemperatureSensor.setResolution(10);
@@ -120,6 +146,7 @@ void setup() {
   Serial.println("Quadrat Inteligente iniciado");
   Serial.print("Device ID: ");
   Serial.println(DEVICE_ID);
+  Serial.println("YL-69 analógico no GPIO 15. Use soilMoistureRaw para calibrar os limites seco/úmido.");
   Serial.print("DS18B20 encontrado(s): ");
   Serial.println(soilTemperatureSensor.getDeviceCount());
   if (soilTemperatureSensor.getDeviceCount() == 0) {
