@@ -109,8 +109,8 @@ function ConnectionPanel({
         <span className="eyebrow">CONEXÃO COM EQUIPAMENTO</span>
         <h2>Conecte seu quadrat inteligente</h2>
         <p>
-          Escolha o ESP32 e confira as leituras do DHT11 antes de iniciar uma
-          coleta.
+          Escolha o ESP32 e confira as leituras do ar e do solo antes de
+          iniciar uma coleta.
         </p>
         <div className="connection-status">
           <span
@@ -153,16 +153,20 @@ function ConnectionPanel({
         {reading ? (
           <div className="reading-grid">
             <div>
-              <small>Temperatura</small>
+              <small>Temperatura do ar</small>
               <strong>{reading.airTemperature ?? "--"} °C</strong>
             </div>
             <div>
-              <small>Umidade</small>
+              <small>Umidade do ar</small>
               <strong>{reading.airHumidity ?? "--"}%</strong>
             </div>
             <div>
-              <small>Nível de água</small>
-              <strong>{reading.waterLevelPercent == null ? "--" : reading.waterLevelPercent > 0 ? "Água detectada" : "Sem água"}</strong>
+              <small>Temperatura do solo</small>
+              <strong>{reading.soilTemperature ?? "--"} °C</strong>
+            </div>
+            <div>
+              <small>Umidade do solo</small>
+              <strong>{reading.soilMoisture == null ? "--" : reading.soilMoisture ? "Úmido" : "Seco"}</strong>
             </div>
           </div>
         ) : (
@@ -220,6 +224,8 @@ function RecordModal({
       longitude: longitude ? Number(longitude) : null,
       temperature: latest?.airTemperature ?? null,
       humidity: latest?.airHumidity ?? null,
+      soilTemperature: latest?.soilTemperature ?? null,
+      soilMoisture: latest?.soilMoisture ?? null,
       deviceId: latest?.deviceId ?? null,
       createdAt: Date.now(),
     });
@@ -293,13 +299,16 @@ function RecordModal({
             </label>
             <div className="sensor-snapshot">
               <span>
-                Temperatura: <b>{latest?.airTemperature ?? "--"} °C</b>
+                Temperatura do ar: <b>{latest?.airTemperature ?? "--"} °C</b>
               </span>
               <span>
-                Umidade: <b>{latest?.airHumidity ?? "--"}%</b>
+                Umidade do ar: <b>{latest?.airHumidity ?? "--"}%</b>
               </span>
               <span>
-                Nível de água: <b>{latest?.waterLevelPercent == null ? "--" : latest.waterLevelPercent > 0 ? "Água detectada" : "Sem água"}</b>
+                Temperatura do solo: <b>{latest?.soilTemperature ?? "--"} °C</b>
+              </span>
+              <span>
+                Umidade do solo: <b>{latest?.soilMoisture == null ? "--" : latest.soilMoisture ? "Úmido" : "Seco"}</b>
               </span>
             </div>
           </>
@@ -420,12 +429,22 @@ function ItemsPage({
                         )}
                         {typeof item.temperature === "number" && (
                           <p>
-                            <b>Temperatura:</b> {item.temperature} °C
+                            <b>Temperatura do ar:</b> {item.temperature} °C
                           </p>
                         )}
                         {typeof item.humidity === "number" && (
                           <p>
-                            <b>Umidade:</b> {item.humidity}%
+                            <b>Umidade do ar:</b> {item.humidity}%
+                          </p>
+                        )}
+                        {typeof item.soilTemperature === "number" && (
+                          <p>
+                            <b>Temperatura do solo:</b> {item.soilTemperature} °C
+                          </p>
+                        )}
+                        {typeof item.soilMoisture === "boolean" && (
+                          <p>
+                            <b>Umidade do solo:</b> {item.soilMoisture ? "Úmido" : "Seco"}
                           </p>
                         )}
                         {typeof item.deviceId === "string" && item.deviceId && (

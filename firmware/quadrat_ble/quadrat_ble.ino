@@ -4,6 +4,8 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <DHT.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
 
 // Identificação persistente deste equipamento.
 // Altere estes valores para cada quadrat físico.
@@ -13,14 +15,18 @@ static const char* DEVICE_NAME = "Quadrat-Q001";
 static const char* SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 static const char* MEASUREMENT_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-// Pinos sugeridos. Confira o arquivo docs/ESP32-CONEXAO.md antes de ligar.
-constexpr uint8_t DHT_PIN = 4;
+// Ligações dos sensores e do LED.
+constexpr uint8_t DHT_PIN = 4;                 // DHT11: temperatura e umidade do ar.
 constexpr uint8_t DHT_TYPE = DHT11;
-constexpr uint8_t SOIL_MOISTURE_PIN = 18;
-constexpr uint8_t CONNECTION_LED_PIN = 21;
+constexpr uint8_t SOIL_TEMPERATURE_PIN = 17;  // DS18B20: temperatura do solo.
+constexpr uint8_t SOIL_MOISTURE_PIN = 18;     // YL-69: saída digital (D0).
+constexpr uint8_t CONNECTION_LED_PIN = 21;    // LED verde: conexão BLE ativa.
 constexpr unsigned long MEASUREMENT_INTERVAL_MS = 5000;
 
 DHT dht(DHT_PIN, DHT_TYPE);
+OneWire soilTemperatureWire(SOIL_TEMPERATURE_PIN);
+DallasTemperature soilTemperatureSensor(&soilTemperatureWire);
+
 BLECharacteristic* measurementCharacteristic = nullptr;
 bool clientConnected = false;
 uint32_t sequenceNumber = 0;
@@ -41,21 +47,35 @@ class ServerCallbacks final : public BLEServerCallbacks {
   }
 };
 
+String numberOrNull(float value, bool valid) {
+  return valid ? String(value, 2) : "null";
+}
+
 String buildMeasurement() {
   const float airTemperature = dht.readTemperature();
   const float airHumidity = dht.readHumidity();
-  const bool airValid = !isnan(airTemperature) && !isnan(airHumidity);
-  // Neste módulo HW-038, HIGH indica que há água no sensor.
+  const bool airTemperatureValid = !isnan(airTemperature);
+  const bool airHumidityValid = !isnan(airHumidity);
+
+  soilTemperatureSensor.requestTemperatures();
+  const float soilTemperature =
+    soilTemperatureSensor.getTempCByIndex(0);
+  const bool soilTemperatureValid =
+    soilTemperature != DEVICE_DISCONNECTED_C && !isnan(soilTemperature);
+
+  // O YL-69 está ligado pela saída digital D0 no GPIO 18.
+  // Ajuste o potenciômetro do módulo para definir o limiar seco/úmido.
   const int soilMoistureRaw = digitalRead(SOIL_MOISTURE_PIN);
-  const int waterLevelPercent = soilMoistureRaw == HIGH ? 100 : 0;
+  const bool soilMoisture = soilMoistureRaw == HIGH;
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
   json += "\"sequence\":" + String(sequenceNumber++) + ",";
   json += "\"uptimeMs\":" + String(millis()) + ",";
-  json += "\"airTemperature\":" + (airValid ? String(airTemperature, 2) : "null") + ",";
-  json += "\"airHumidity\":" + (airValid ? String(airHumidity, 2) : "null") + ",";
-  json += "\"waterLevelPercent\":" + String(waterLevelPercent) + ",";
+  json += "\"airTemperature\":" + numberOrNull(airTemperature, airTemperatureValid) + ",";
+  json += "\"airHumidity\":" + numberOrNull(airHumidity, airHumidityValid) + ",";
+  json += "\"soilTemperature\":" + numberOrNull(soilTemperature, soilTemperatureValid) + ",";
+  json += "\"soilMoisture\":" + String(soilMoisture ? "true" : "false") + ",";
   json += "\"soilMoistureRaw\":" + String(soilMoistureRaw) + ",";
   json += "\"latitude\":null,";
   json += "\"longitude\":null,";
@@ -70,6 +90,7 @@ void setup() {
   digitalWrite(CONNECTION_LED_PIN, LOW);
   pinMode(SOIL_MOISTURE_PIN, INPUT);
   dht.begin();
+  soilTemperatureSensor.begin();
 
   BLEDevice::init(DEVICE_NAME);
   BLEServer* server = BLEDevice::createServer();
@@ -81,6 +102,7 @@ void setup() {
   );
   measurementCharacteristic->addDescriptor(new BLE2902());
   service->start();
+
   BLEAdvertising* advertising = server->getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->setScanResponse(true);
@@ -97,6 +119,7 @@ void setup() {
 void loop() {
   if (millis() - lastMeasurement < MEASUREMENT_INTERVAL_MS) return;
   lastMeasurement = millis();
+
   const String payload = buildMeasurement();
   Serial.println(payload);
   if (clientConnected && measurementCharacteristic != nullptr) {
