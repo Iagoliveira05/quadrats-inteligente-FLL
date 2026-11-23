@@ -45,6 +45,7 @@ import "./navigation-actions.css";
 import "./ble-persistence.css";
 import "./team-navigation.css";
 import "./refresh-controls.css";
+import "./sensor-progress.css";
 
 type Section =
   | "Inicio"
@@ -66,9 +67,18 @@ function ConnectionPanel({
   >("idle");
   const [deviceName, setDeviceName] = useState("Nenhum dispositivo conectado");
   const [reading, setReading] = useState<SensorMeasurement | null>(null);
+  const [elapsedSinceReading, setElapsedSinceReading] = useState(0);
   const [error, setError] = useState("");
   const connectionRef = useRef<Awaited<ReturnType<typeof connectQuadrat>> | null>(null);
+  const SENSOR_UPDATE_INTERVAL_MS = 5000;
   useEffect(() => () => connectionRef.current?.disconnect(), []);
+  useEffect(() => {
+    if (state !== "connected") return;
+    const timer = window.setInterval(() => {
+      setElapsedSinceReading((value) => Math.min(value + 100, SENSOR_UPDATE_INTERVAL_MS));
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [state]);
   async function connect() {
     if (connectionRef.current || state === "searching") return;
     setState("searching");
@@ -77,6 +87,7 @@ function ConnectionPanel({
       const result = await connectQuadrat(
         (value) => {
           setReading(value);
+          setElapsedSinceReading(0);
           onReading(value);
         },
         () => {
@@ -84,6 +95,7 @@ function ConnectionPanel({
           setState("idle");
           setDeviceName("ESP32 desconectado");
           setReading(null);
+          setElapsedSinceReading(0);
         },
       );
       connectionRef.current = result;
@@ -151,6 +163,14 @@ function ConnectionPanel({
           <b>{reading ? "Recebendo dados" : "Aguardando ESP32"}</b>
         </div>
         {reading ? (
+          <>
+          <div className="sensor-progress" aria-label={`Próxima atualização em ${Math.ceil((SENSOR_UPDATE_INTERVAL_MS - elapsedSinceReading) / 1000)} segundos`}>
+            <div className="sensor-progress-label">
+              <span>Próxima atualização</span>
+              <b>{Math.ceil((SENSOR_UPDATE_INTERVAL_MS - elapsedSinceReading) / 1000)}s</b>
+            </div>
+            <div className="sensor-progress-track"><span style={{ width: `${(elapsedSinceReading / SENSOR_UPDATE_INTERVAL_MS) * 100}%` }} /></div>
+          </div>
           <div className="reading-grid">
             <div>
               <small>Temperatura do ar</small>
@@ -168,7 +188,12 @@ function ConnectionPanel({
               <small>Umidade do solo</small>
               <strong>{reading.soilMoisturePercent == null ? "--" : `${reading.soilMoisturePercent}%`}</strong>
             </div>
+            <div>
+              <small>Luminosidade</small>
+              <strong>{reading.lightLux == null ? "--" : `${reading.lightLux} lux`}</strong>
+            </div>
           </div>
+          </>
         ) : (
           <div className="preview-empty">
             <Radio size={26} />
@@ -227,6 +252,7 @@ function RecordModal({
       soilTemperature: latest?.soilTemperature ?? null,
       soilMoisture: latest?.soilMoisture ?? null,
       soilMoisturePercent: latest?.soilMoisturePercent ?? null,
+      lightLux: latest?.lightLux ?? null,
       deviceId: latest?.deviceId ?? null,
       createdAt: Date.now(),
     });
@@ -310,6 +336,9 @@ function RecordModal({
               </span>
               <span>
                 Umidade do solo: <b>{latest?.soilMoisturePercent == null ? "--" : `${latest.soilMoisturePercent}%`}</b>
+              </span>
+              <span>
+                Luminosidade: <b>{latest?.lightLux == null ? "--" : `${latest.lightLux} lux`}</b>
               </span>
             </div>
           </>
@@ -450,6 +479,11 @@ function ItemsPage({
                         ) : typeof item.soilMoisture === "boolean" && (
                           <p>
                             <b>Umidade do solo:</b> {item.soilMoisture ? "100%" : "0%"}
+                          </p>
+                        )}
+                        {typeof item.lightLux === "number" && (
+                          <p>
+                            <b>Luminosidade:</b> {item.lightLux} lux
                           </p>
                         )}
                         {typeof item.deviceId === "string" && item.deviceId && (

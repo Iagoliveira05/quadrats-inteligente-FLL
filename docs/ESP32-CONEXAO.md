@@ -57,13 +57,14 @@ O firmware BLE utiliza bibliotecas incluídas no core oficial ESP32.
 | DS18B20 DATA | GPIO 16 | Resistor de 4,7 kΩ entre DATA e 3V3 |
 | DS18B20 VCC | 3V3 | Consulte o módulo usado |
 | DS18B20 GND | GND | Terra comum |
-| BH1750 SDA | GPIO 21 | Barramento I2C |
-| BH1750 SCL | GPIO 22 | Barramento I2C |
+| BH1750 SDA | GPIO 21 | Barramento I2C; exclusivo para SDA |
+| BH1750 SCL | GPIO 22 | Barramento I2C; exclusivo para SCL |
 | BH1750 VCC | 3V3 | Consulte a placa do módulo |
 | BH1750 GND | GND | Terra comum |
 | Sensor capacitivo | GPIO 34 | Entrada analógica somente |
-| GPS TX | GPIO 17 (RX2) | Cruzar TX/RX |
-| GPS RX | GPIO 16 (TX2) | Pode conflitar com DS18B20 |
+| LED de conexão | GPIO 2 | Não é sensor; indica conexão BLE |
+| GPS TX | GPIO 17 (RX2) | Ainda não implementado no firmware atual |
+| GPS RX | GPIO 16 (TX2) | Ainda não implementado no firmware atual |
 
 O GPS e o DS18B20 não devem compartilhar o mesmo pino. Se utilizar GPS, mova o DS18B20 para outro GPIO e altere as constantes no firmware.
 

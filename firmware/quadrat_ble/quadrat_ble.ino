@@ -6,6 +6,8 @@
 #include <DHT.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
+#include <Wire.h>
+#include <BH1750.h>
 
 // Identificação persistente deste equipamento.
 // Altere estes valores para cada quadrat físico.
@@ -16,12 +18,14 @@ static const char* SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 static const char* MEASUREMENT_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
 // Ligações dos sensores e do LED.
-constexpr uint8_t DHT_PIN = 4;                 // DHT11: temperatura e umidade do ar.
+constexpr uint8_t DHT_PIN = 26;                // DHT11: temperatura e umidade do ar.
 constexpr uint8_t DHT_TYPE = DHT11;
-constexpr uint8_t SOIL_TEMPERATURE_PIN = 17;  // DS18B20: temperatura do solo.
+constexpr uint8_t SOIL_TEMPERATURE_PIN = 21;  // DS18B20: temperatura do solo.
 constexpr uint8_t SOIL_TEMPERATURE_RESOLUTION = 12;
 constexpr uint8_t SOIL_MOISTURE_PIN = 15;     // YL-69: saída analógica (AO).
-constexpr uint8_t CONNECTION_LED_PIN = 21;    // LED verde: conexão BLE ativa.
+constexpr uint8_t I2C_SDA_PIN = 32;           // BH1750 SDA.
+constexpr uint8_t I2C_SCL_PIN = 33;           // BH1750 SCL.
+constexpr uint8_t CONNECTION_LED_PIN = 12;    // LED verde: conexão BLE ativa.
 constexpr unsigned long MEASUREMENT_INTERVAL_MS = 5000;
 
 // Calibre estes limites com os valores exibidos no Monitor Serial.
@@ -33,10 +37,12 @@ constexpr uint8_t SOIL_MOISTURE_SAMPLES = 10;
 DHT dht(DHT_PIN, DHT_TYPE);
 OneWire soilTemperatureWire(SOIL_TEMPERATURE_PIN);
 DallasTemperature soilTemperatureSensor(&soilTemperatureWire);
+BH1750 lightSensor;
 
 BLECharacteristic* measurementCharacteristic = nullptr;
 bool clientConnected = false;
 bool soilTemperatureSensorDetected = false;
+bool lightSensorDetected = false;
 uint32_t sequenceNumber = 0;
 unsigned long lastMeasurement = 0;
 
@@ -73,6 +79,12 @@ void setupSoilTemperatureSensor() {
   }
 }
 
+void setupLightSensor() {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+  lightSensorDetected = lightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
+  Serial.println(lightSensorDetected ? "BH1750 encontrado no I2C." : "BH1750 não encontrado no I2C.");
+}
+
 int readSoilMoistureRaw() {
   uint32_t total = 0;
   for (uint8_t sample = 0; sample < SOIL_MOISTURE_SAMPLES; sample++) {
@@ -106,6 +118,8 @@ String buildMeasurement() {
   // O YL-69 está ligado pela saída analógica AO no GPIO 15.
   // Em geral, a leitura diminui à medida que o solo fica mais úmido.
   const int soilMoistureRaw = readSoilMoistureRaw();
+  const float lightLux = lightSensorDetected ? lightSensor.readLightLevel() : NAN;
+  const bool lightLuxValid = !isnan(lightLux) && lightLux >= 0;
   const int soilMoisturePercent = constrain(
     map(
       soilMoistureRaw,
@@ -129,6 +143,7 @@ String buildMeasurement() {
   json += "\"soilMoisture\":" + String(soilMoisture ? "true" : "false") + ",";
   json += "\"soilMoisturePercent\":" + String(soilMoisturePercent) + ",";
   json += "\"soilMoistureRaw\":" + String(soilMoistureRaw) + ",";
+  json += "\"lightLux\":" + numberOrNull(lightLux, lightLuxValid) + ",";
   json += "\"latitude\":null,";
   json += "\"longitude\":null,";
   json += "\"gpsValid\":false";
@@ -162,6 +177,7 @@ void setup() {
   advertising->setMinPreferred(0x12);
   advertising->start();
   setupSoilTemperatureSensor();
+  setupLightSensor();
 
   Serial.println("Quadrat Inteligente iniciado");
   Serial.print("Device ID: ");
