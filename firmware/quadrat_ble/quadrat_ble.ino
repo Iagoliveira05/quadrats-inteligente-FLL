@@ -22,17 +22,22 @@ constexpr uint8_t DHT_PIN = 26;                // DHT11: temperatura e umidade d
 constexpr uint8_t DHT_TYPE = DHT11;
 constexpr uint8_t SOIL_TEMPERATURE_PIN = 21;  // DS18B20: temperatura do solo.
 constexpr uint8_t SOIL_TEMPERATURE_RESOLUTION = 12;
-constexpr uint8_t SOIL_MOISTURE_PIN = 15;     // YL-69: saída analógica (AO).
+// IMPORTANTE: use um pino do ADC1 (GPIO 34, 35, 36 ou 39) para o YL-69 (saída AO).
+// Pinos do ADC2 (como GPIO 15) conflitam com o rádio BLE do ESP32 e travam a leitura.
+// Alimente o módulo YL-69 em 3V3 (não em 5V) para não saturar o ADC em 4095 (0%).
+constexpr uint8_t SOIL_MOISTURE_PIN = 34;     // YL-69: saída analógica (AO) no ADC1.
 constexpr uint8_t I2C_SDA_PIN = 32;           // BH1750 SDA.
 constexpr uint8_t I2C_SCL_PIN = 33;           // BH1750 SCL.
 constexpr uint8_t CONNECTION_LED_PIN = 12;    // LED verde: conexão BLE ativa.
 constexpr unsigned long MEASUREMENT_INTERVAL_MS = 5000;
 
-// Calibre estes limites com os valores exibidos no Monitor Serial.
-// Primeiro deixe a sonda seca; depois, coloque-a em solo completamente úmido.
-constexpr int SOIL_MOISTURE_DRY_RAW = 3200;
-constexpr int SOIL_MOISTURE_WET_RAW = 1300;
-constexpr uint8_t SOIL_MOISTURE_SAMPLES = 10;
+// Calibre estes limites com os valores de soilMoistureRaw exibidos no Monitor Serial.
+// Com o YL-69 alimentado em 3V3 no ADC de 12 bits (0–4095):
+// - Seco no ar: ~4095
+// - Em água / solo saturado: ~1200
+constexpr int SOIL_MOISTURE_DRY_RAW = 4095;
+constexpr int SOIL_MOISTURE_WET_RAW = 1200;
+constexpr uint8_t SOIL_MOISTURE_SAMPLES = 16;
 
 DHT dht(DHT_PIN, DHT_TYPE);
 OneWire soilTemperatureWire(SOIL_TEMPERATURE_PIN);
@@ -75,7 +80,9 @@ void setupSoilTemperatureSensor() {
   Serial.print("DS18B20 encontrado(s): ");
   Serial.println(sensorCount);
   if (!soilTemperatureSensorDetected) {
-    Serial.println("Conecte o DS18B20 ao GPIO 17 com resistor de 4,7 kΩ entre DATA e 3V3.");
+    Serial.print("Conecte o DS18B20 ao GPIO ");
+    Serial.print(SOIL_TEMPERATURE_PIN);
+    Serial.println(" com resistor de 4,7 kΩ entre DATA e 3V3.");
   }
 }
 
@@ -86,12 +93,24 @@ void setupLightSensor() {
 }
 
 int readSoilMoistureRaw() {
+  // Descarta a primeira amostra para estabilização do ADC1.
+  (void)analogRead(SOIL_MOISTURE_PIN);
+  delay(5);
+
   uint32_t total = 0;
   for (uint8_t sample = 0; sample < SOIL_MOISTURE_SAMPLES; sample++) {
     total += analogRead(SOIL_MOISTURE_PIN);
     delay(5);
   }
-  return total / SOIL_MOISTURE_SAMPLES;
+  return static_cast<int>(total / SOIL_MOISTURE_SAMPLES);
+}
+
+int computeSoilMoisturePercent(int raw) {
+  if (SOIL_MOISTURE_DRY_RAW == SOIL_MOISTURE_WET_RAW) return 0;
+  const float ratio = static_cast<float>(SOIL_MOISTURE_DRY_RAW - raw) /
+                      static_cast<float>(SOIL_MOISTURE_DRY_RAW - SOIL_MOISTURE_WET_RAW);
+  const int percent = static_cast<int>(lroundf(ratio * 100.0f));
+  return constrain(percent, 0, 100);
 }
 
 String buildMeasurement() {
@@ -112,26 +131,32 @@ String buildMeasurement() {
   const bool soilTemperatureValid =
     soilTemperature != DEVICE_DISCONNECTED_C && !isnan(soilTemperature);
   if (!soilTemperatureValid) {
-    Serial.println("DS18B20 sem leitura. Verifique o sensor, o GPIO 17 e o resistor de 4,7 kΩ.");
+    Serial.print("DS18B20 sem leitura. Verifique o sensor, o GPIO ");
+    Serial.print(SOIL_TEMPERATURE_PIN);
+    Serial.println(" e o resistor de 4,7 kΩ.");
   }
 
-  // O YL-69 está ligado pela saída analógica AO no GPIO 15.
-  // Em geral, a leitura diminui à medida que o solo fica mais úmido.
+  // O YL-69 está ligado pela saída analógica AO no GPIO 34 (ADC1).
+  // A leitura diminui à medida que o solo fica mais úmido.
   const int soilMoistureRaw = readSoilMoistureRaw();
+  const int soilMoistureMv = analogReadMilliVolts(SOIL_MOISTURE_PIN);
   const float lightLux = lightSensorDetected ? lightSensor.readLightLevel() : NAN;
   const bool lightLuxValid = !isnan(lightLux) && lightLux >= 0;
-  const int soilMoisturePercent = constrain(
-    map(
-      soilMoistureRaw,
-      SOIL_MOISTURE_DRY_RAW,
-      SOIL_MOISTURE_WET_RAW,
-      0,
-      100
-    ),
-    0,
-    100
-  );
+  const int soilMoisturePercent = computeSoilMoisturePercent(soilMoistureRaw);
   const bool soilMoisture = soilMoisturePercent >= 50;
+
+  Serial.print("YL-69 (GPIO ");
+  Serial.print(SOIL_MOISTURE_PIN);
+  Serial.print(") raw=");
+  Serial.print(soilMoistureRaw);
+  Serial.print(" (");
+  Serial.print(soilMoistureMv);
+  Serial.print(" mV) -> ");
+  Serial.print(soilMoisturePercent);
+  Serial.println("%");
+  if (soilMoistureRaw >= 4090) {
+    Serial.println("Aviso YL-69: leitura no teto (4095). Confirme: fio em AO (não DO), VCC em 3V3 (não 5V) e garfo conectado.");
+  }
 
   String json = "{";
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
@@ -155,11 +180,13 @@ void setup() {
   Serial.begin(115200);
   pinMode(CONNECTION_LED_PIN, OUTPUT);
   digitalWrite(CONNECTION_LED_PIN, LOW);
+  pinMode(SOIL_MOISTURE_PIN, INPUT);
   analogReadResolution(12);
   analogSetPinAttenuation(SOIL_MOISTURE_PIN, ADC_11db);
   dht.begin();
 
   BLEDevice::init(DEVICE_NAME);
+  BLEDevice::setMTU(517);
   BLEServer* server = BLEDevice::createServer();
   server->setCallbacks(new ServerCallbacks());
   BLEService* service = server->createService(SERVICE_UUID);
@@ -182,7 +209,9 @@ void setup() {
   Serial.println("Quadrat Inteligente iniciado");
   Serial.print("Device ID: ");
   Serial.println(DEVICE_ID);
-  Serial.println("YL-69 analógico no GPIO 15. Use soilMoistureRaw para calibrar os limites seco/úmido.");
+  Serial.print("YL-69 analógico (AO) no GPIO ");
+  Serial.print(SOIL_MOISTURE_PIN);
+  Serial.println(" (ADC1). Use soilMoistureRaw para calibrar os limites seco/úmido.");
   Serial.println("Aguardando conexão BLE...");
 }
 
