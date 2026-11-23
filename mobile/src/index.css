@@ -1,0 +1,7 @@
+@import "@fontsource/dm-sans/400.css";
+@import "@fontsource/dm-sans/500.css";
+@import "@fontsource/dm-sans/700.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/manrope/800.css";
+@import "tailwindcss";
+:root{font-family:'DM Sans',system-ui,-apple-system,sans-serif;color:#20332e;background:#f5f8f6}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}#root{min-height:100vh}
