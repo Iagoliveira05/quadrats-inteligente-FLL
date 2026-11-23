@@ -10,12 +10,10 @@ import {
   Leaf,
   LogOut,
   MapPin,
-  Pencil,
   Plus,
   Radio,
   RefreshCw,
   Settings,
-  Trash2,
   Users,
   WifiOff,
   X,
@@ -40,11 +38,8 @@ import {
 } from "./services/data";
 import { TeamPage } from "./components/TeamPage";
 import { CollectionForm } from "./components/CollectionForm";
+import { CollectionsHistoryPage } from "./components/CollectionsHistoryPage";
 import { HomeMapDashboard } from "./components/HomeMapDashboard";
-import {
-  CollectionDetails,
-  CollectionSummaryBadges,
-} from "./components/CollectionDetails";
 import {
   persistCollectionPhotos,
   removeCollectionPhotos,
@@ -327,40 +322,18 @@ function ItemsPage({
   empty,
   addLabel,
   onAdd,
-  onEdit,
-  onDelete,
   onRefresh,
   refreshing,
-  isCollection = false,
-  initialExpandedId = null,
-  notice = "",
-  onDismissNotice,
 }: {
   title: string;
   items: WorkspaceItem[];
   empty: string;
   addLabel: string;
   onAdd: () => void;
-  onEdit?: (item: WorkspaceItem) => void;
-  onDelete?: (item: WorkspaceItem) => Promise<void>;
   onRefresh: () => Promise<void>;
   refreshing: boolean;
-  isCollection?: boolean;
-  initialExpandedId?: string | null;
-  notice?: string;
-  onDismissNotice?: () => void;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(initialExpandedId);
-  const [confirming, setConfirming] = useState<WorkspaceItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  async function confirmDelete() {
-    if (!confirming || !onDelete) return;
-    setDeleting(true);
-    await onDelete(confirming);
-    setDeleting(false);
-    setConfirming(null);
-    setExpanded(null);
-  }
+  const [expanded, setExpanded] = useState<string | null>(null);
   return (
     <section className="panel page-panel">
       <div className="section-title">
@@ -379,19 +352,6 @@ function ItemsPage({
           </button>
         </div>
       </div>
-      {notice && (
-        <div className="saved-notice" role="status">
-          <span>
-            <CheckCircle2 size={16} />
-            {notice}
-          </span>
-          {onDismissNotice && (
-            <button type="button" onClick={onDismissNotice} aria-label="Fechar aviso">
-              <X size={15} />
-            </button>
-          )}
-        </div>
-      )}
       {items.length === 0 ? (
         <div className="empty-state">
           <Leaf size={24} />
@@ -415,7 +375,6 @@ function ItemsPage({
                       {new Date(Number(item.createdAt)).toLocaleString("pt-BR")}
                     </small>
                     {typeof item.createdByName === "string" && <small>Registrado por {item.createdByName}</small>}
-                    {isCollection && <CollectionSummaryBadges item={item} />}
                     <div className="record-actions">
                       <button
                         className="details-button"
@@ -423,88 +382,36 @@ function ItemsPage({
                       >
                         {isOpen ? "Ocultar detalhes" : "Ver detalhes"}
                       </button>
-                      {onEdit && (
-                        <button
-                          className="edit-button"
-                          onClick={() => onEdit(item)}
-                        >
-                          <Pencil size={13} />
-                          Editar
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          className="delete-button"
-                          onClick={() => setConfirming(item)}
-                        >
-                          <Trash2 size={13} />
-                          Excluir
-                        </button>
-                      )}
                     </div>
                     {isOpen && (
-                      isCollection ? (
-                        <CollectionDetails item={item} />
-                      ) : (
-                        <div className="record-details">
-                          {typeof item.latitude === "number" &&
-                            typeof item.longitude === "number" && (
-                              <p>
-                                <b>Localização:</b>{" "}
-                                <a
-                                  href={`https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=17/${item.latitude}/${item.longitude}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  {item.latitude}, {item.longitude}
-                                </a>
-                              </p>
-                            )}
-                          {typeof item.notes === "string" && item.notes && (
+                      <div className="record-details">
+                        {typeof item.latitude === "number" &&
+                          typeof item.longitude === "number" && (
                             <p>
-                              <b>Observações:</b> {item.notes}
+                              <b>Localização:</b>{" "}
+                              <a
+                                href={`https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=17/${item.latitude}/${item.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {item.latitude}, {item.longitude}
+                              </a>
                             </p>
                           )}
+                        {typeof item.notes === "string" && item.notes && (
                           <p>
-                            <b>ID:</b> {item.id}
+                            <b>Observações:</b> {item.notes}
                           </p>
-                        </div>
-                      )
+                        )}
+                        <p>
+                          <b>ID:</b> {item.id}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </article>
               );
             })}
-        </div>
-      )}
-      {confirming && (
-        <div className="modal-backdrop confirm-backdrop">
-          <section className="confirm-dialog">
-            <span className="confirm-icon">
-              <Trash2 size={20} />
-            </span>
-            <h3>Excluir coleta?</h3>
-            <p>
-              A coleta <b>{confirming.name}</b> será removida. Esta ação não
-              poderá ser desfeita.
-            </p>
-            <div>
-              <button
-                className="cancel-delete"
-                onClick={() => setConfirming(null)}
-                disabled={deleting}
-              >
-                Cancelar
-              </button>
-              <button
-                className="confirm-delete"
-                onClick={() => void confirmDelete()}
-                disabled={deleting}
-              >
-                {deleting ? "Excluindo..." : "Excluir coleta"}
-              </button>
-            </div>
-          </section>
         </div>
       )}
     </section>
@@ -959,18 +866,16 @@ export default function App() {
           />
         )}
         {section === "Coletas" && (
-          <ItemsPage
+          <CollectionsHistoryPage
             key={`${lastSavedId ?? "collections"}-${lastSavedVersion}`}
-            title="Histórico de coletas"
             items={collections}
-            empty="Nenhuma coleta registrada."
-            addLabel="Nova coleta"
+            areas={areas}
+            quadrats={quadrats}
             onAdd={openNewCollection}
             onEdit={openEditCollection}
             onDelete={removeCollection}
             onRefresh={refreshRecords}
             refreshing={refreshingRecords}
-            isCollection
             initialExpandedId={lastSavedId}
             notice={savedNotice}
             onDismissNotice={() => setSavedNotice("")}
