@@ -119,9 +119,133 @@ export async function deleteRecord(projectId: string, kind: RecordKind, itemId: 
 }
 
 export function exportCollectionsCsv(items: WorkspaceItem[]) {
-  const headers = ['id', 'nome', 'data', 'temperatura_ar_c', 'umidade_ar_percentual', 'temperatura_solo_c', 'umidade_solo_percentual', 'observacoes']
+  const headers = [
+    'id',
+    'nome',
+    'data_coleta',
+    'area',
+    'quadrat',
+    'quadrante',
+    'quadrante_numero',
+    'orientacao_quadrat',
+    'dimensao_quadrat',
+    'metodo_amostragem',
+    'transecto',
+    'latitude',
+    'longitude',
+    'altitude_m',
+    'temperatura_ar_c',
+    'umidade_ar_percentual',
+    'temperatura_solo_c',
+    'umidade_solo_percentual',
+    'luminosidade_lux',
+    'clima',
+    'insolacao',
+    'vento',
+    'ph_solo',
+    'declividade_graus',
+    'exposicao_terreno',
+    'substrato',
+    'estrato_vegetacao',
+    'cobertura_vegetal_percentual',
+    'solo_exposto_percentual',
+    'serapilheira_percentual',
+    'rochas_percentual',
+    'agua_percentual',
+    'profundidade_serapilheira_cm',
+    'cobertura_dossel_percentual',
+    'altura_media_cm',
+    'altura_maxima_cm',
+    'riqueza_especies',
+    'total_individuos',
+    'densidade_ind_m2',
+    'indice_shannon',
+    'especies',
+    'quantidade_fotos',
+    'fotos_registradas',
+    'perturbacoes',
+    'evidencias_fauna',
+    'observacoes',
+    'equipamento',
+    'autor',
+  ]
   const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
-  const rows = items.map(item => [item.id, item.name, item.createdAt, item.temperature, item.humidity, item.soilTemperature, item.soilMoisturePercent ?? (item.soilMoisture === true ? 100 : item.soilMoisture === false ? 0 : ''), item.notes].map(escape).join(','))
+  const formatSpeciesCell = (item: WorkspaceItem) => {
+    if (Array.isArray(item.speciesEntries) && item.speciesEntries.length > 0) {
+      return item.speciesEntries
+        .map(entry => {
+          const record = entry as Record<string, unknown>
+          const label = [record.commonName, record.scientificName ? `(${record.scientificName})` : ''].filter(Boolean).join(' ')
+          const meta = [
+            typeof record.count === 'number' ? `n=${record.count}` : '',
+            typeof record.coverPercent === 'number' ? `cob=${record.coverPercent}%` : '',
+            record.braunBlanquet ? `BB=${record.braunBlanquet}` : '',
+            record.invasive ? 'invasora' : '',
+          ].filter(Boolean)
+          return meta.length ? `${label} [${meta.join('; ')}]` : label
+        })
+        .join(' | ')
+    }
+    return Array.isArray(item.species) ? item.species.join('; ') : ''
+  }
+  const rows = items.map(item => [
+    item.id,
+    item.name,
+    typeof item.collectedAt === 'string' ? item.collectedAt : new Date(Number(item.createdAt)).toISOString(),
+    item.areaName,
+    item.quadratName,
+    item.quadrant,
+    item.quadrantNumber,
+    item.quadratOrientation,
+    item.quadratSize,
+    item.samplingMethod,
+    item.transect,
+    item.latitude,
+    item.longitude,
+    item.altitude,
+    item.temperature,
+    item.humidity,
+    item.soilTemperature,
+    item.soilMoisturePercent ?? (item.soilMoisture === true ? 100 : item.soilMoisture === false ? 0 : ''),
+    item.lightLux,
+    item.weather,
+    item.sunExposure,
+    item.windCondition,
+    item.soilPh,
+    item.slopeDegrees,
+    item.aspect,
+    item.substrateType,
+    item.vegetationStratum,
+    item.vegetationCoverPercent,
+    item.bareSoilPercent,
+    item.litterCoverPercent,
+    item.rockCoverPercent,
+    item.waterCoverPercent,
+    item.litterDepthCm,
+    item.canopyCoverPercent,
+    item.avgVegetationHeightCm,
+    item.maxVegetationHeightCm,
+    item.speciesRichness,
+    item.totalIndividuals,
+    item.estimatedDensityPerM2,
+    item.shannonIndex,
+    formatSpeciesCell(item),
+    Array.isArray(item.photos) ? item.photos.length : (typeof item.photoCount === 'number' ? item.photoCount : 0),
+    Array.isArray(item.photos)
+      ? item.photos
+          .map(entry => {
+            const record = entry as Record<string, unknown>
+            const meta = [record.tag, record.caption].filter(Boolean).join(' - ')
+            return meta ? `${String(record.fileName ?? '')} [${meta}]` : String(record.fileName ?? '')
+          })
+          .join(' | ')
+      : '',
+    Array.isArray(item.disturbances) ? item.disturbances.join('; ') : '',
+    item.faunaEvidence,
+    item.notes,
+    item.deviceId,
+    item.createdByName,
+  ].map(escape).join(','))
   const blob = new Blob(['\uFEFF' + [headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' })
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `coletas-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href)
 }

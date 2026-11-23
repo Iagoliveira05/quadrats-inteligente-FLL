@@ -10,6 +10,7 @@ import {
   Leaf,
   LogOut,
   MapPin,
+  Pencil,
   Plus,
   Radio,
   RefreshCw,
@@ -38,6 +39,17 @@ import {
   type WorkspaceItem,
 } from "./services/data";
 import { TeamPage } from "./components/TeamPage";
+import { CollectionForm } from "./components/CollectionForm";
+import { HomeMapDashboard } from "./components/HomeMapDashboard";
+import {
+  CollectionDetails,
+  CollectionSummaryBadges,
+} from "./components/CollectionDetails";
+import {
+  persistCollectionPhotos,
+  removeCollectionPhotos,
+} from "./services/photos";
+import type { DraftPhoto } from "./types/collection";
 import "./App.css";
 import "./workspace.css";
 import "./record-details.css";
@@ -55,7 +67,11 @@ type Section =
   | "Equipe"
   | "Dados"
   | "Tutorial";
-type Modal = "area" | "quadrat" | "coleta" | null;
+type Modal = "area" | "quadrat" | null;
+type CollectionEditorState =
+  | { mode: "create" }
+  | { mode: "edit"; collection: WorkspaceItem }
+  | null;
 
 function ConnectionPanel({
   onReading,
@@ -207,27 +223,19 @@ function ConnectionPanel({
 
 function RecordModal({
   type,
-  latest,
   close,
   save,
 }: {
   type: Exclude<Modal, null>;
-  latest: SensorMeasurement | null;
   close: () => void;
   save: (item: WorkspaceItem) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
-  const [species, setSpecies] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [busy, setBusy] = useState(false);
-  const label =
-    type === "area"
-      ? "Nova área"
-      : type === "quadrat"
-        ? "Novo quadrat"
-        : "Nova coleta";
+  const label = type === "area" ? "Nova área" : "Novo quadrat";
   function locate() {
     navigator.geolocation?.getCurrentPosition((position) => {
       setLatitude(String(position.coords.latitude));
@@ -241,19 +249,8 @@ function RecordModal({
       id: crypto.randomUUID(),
       name,
       notes,
-      species: species
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
-      temperature: latest?.airTemperature ?? null,
-      humidity: latest?.airHumidity ?? null,
-      soilTemperature: latest?.soilTemperature ?? null,
-      soilMoisture: latest?.soilMoisture ?? null,
-      soilMoisturePercent: latest?.soilMoisturePercent ?? null,
-      lightLux: latest?.lightLux ?? null,
-      deviceId: latest?.deviceId ?? null,
       createdAt: Date.now(),
     });
     setBusy(false);
@@ -279,13 +276,7 @@ function RecordModal({
             required
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder={
-              type === "area"
-                ? "Mata Norte"
-                : type === "quadrat"
-                  ? "Q-001"
-                  : "Coleta da manhã"
-            }
+            placeholder={type === "area" ? "Mata Norte" : "Q-001"}
           />
         </label>
         {type === "area" && (
@@ -314,35 +305,6 @@ function RecordModal({
             </button>
           </>
         )}
-        {type === "coleta" && (
-          <>
-            <label>
-              Espécies observadas
-              <input
-                value={species}
-                onChange={(event) => setSpecies(event.target.value)}
-                placeholder="Ipê, samambaia, musgo"
-              />
-            </label>
-            <div className="sensor-snapshot">
-              <span>
-                Temperatura do ar: <b>{latest?.airTemperature ?? "--"} °C</b>
-              </span>
-              <span>
-                Umidade do ar: <b>{latest?.airHumidity ?? "--"}%</b>
-              </span>
-              <span>
-                Temperatura do solo: <b>{latest?.soilTemperature ?? "--"} °C</b>
-              </span>
-              <span>
-                Umidade do solo: <b>{latest?.soilMoisturePercent == null ? "--" : `${latest.soilMoisturePercent}%`}</b>
-              </span>
-              <span>
-                Luminosidade: <b>{latest?.lightLux == null ? "--" : `${latest.lightLux} lux`}</b>
-              </span>
-            </div>
-          </>
-        )}
         <label>
           Observações
           <textarea
@@ -365,20 +327,30 @@ function ItemsPage({
   empty,
   addLabel,
   onAdd,
+  onEdit,
   onDelete,
   onRefresh,
   refreshing,
+  isCollection = false,
+  initialExpandedId = null,
+  notice = "",
+  onDismissNotice,
 }: {
   title: string;
   items: WorkspaceItem[];
   empty: string;
   addLabel: string;
   onAdd: () => void;
+  onEdit?: (item: WorkspaceItem) => void;
   onDelete?: (item: WorkspaceItem) => Promise<void>;
   onRefresh: () => Promise<void>;
   refreshing: boolean;
+  isCollection?: boolean;
+  initialExpandedId?: string | null;
+  notice?: string;
+  onDismissNotice?: () => void;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(initialExpandedId);
   const [confirming, setConfirming] = useState<WorkspaceItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   async function confirmDelete() {
@@ -407,6 +379,19 @@ function ItemsPage({
           </button>
         </div>
       </div>
+      {notice && (
+        <div className="saved-notice" role="status">
+          <span>
+            <CheckCircle2 size={16} />
+            {notice}
+          </span>
+          {onDismissNotice && (
+            <button type="button" onClick={onDismissNotice} aria-label="Fechar aviso">
+              <X size={15} />
+            </button>
+          )}
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="empty-state">
           <Leaf size={24} />
@@ -418,9 +403,6 @@ function ItemsPage({
             .sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
             .map((item) => {
               const isOpen = expanded === item.id;
-              const species = Array.isArray(item.species)
-                ? item.species.join(", ")
-                : "";
               return (
                 <article
                   className={`record-card ${isOpen ? "expanded" : ""}`}
@@ -433,6 +415,7 @@ function ItemsPage({
                       {new Date(Number(item.createdAt)).toLocaleString("pt-BR")}
                     </small>
                     {typeof item.createdByName === "string" && <small>Registrado por {item.createdByName}</small>}
+                    {isCollection && <CollectionSummaryBadges item={item} />}
                     <div className="record-actions">
                       <button
                         className="details-button"
@@ -440,6 +423,15 @@ function ItemsPage({
                       >
                         {isOpen ? "Ocultar detalhes" : "Ver detalhes"}
                       </button>
+                      {onEdit && (
+                        <button
+                          className="edit-button"
+                          onClick={() => onEdit(item)}
+                        >
+                          <Pencil size={13} />
+                          Editar
+                        </button>
+                      )}
                       {onDelete && (
                         <button
                           className="delete-button"
@@ -451,68 +443,33 @@ function ItemsPage({
                       )}
                     </div>
                     {isOpen && (
-                      <div className="record-details">
-                        {species && (
-                          <p>
-                            <b>Espécies:</b> {species}
-                          </p>
-                        )}
-                        {typeof item.temperature === "number" && (
-                          <p>
-                            <b>Temperatura do ar:</b> {item.temperature} °C
-                          </p>
-                        )}
-                        {typeof item.humidity === "number" && (
-                          <p>
-                            <b>Umidade do ar:</b> {item.humidity}%
-                          </p>
-                        )}
-                        {typeof item.soilTemperature === "number" && (
-                          <p>
-                            <b>Temperatura do solo:</b> {item.soilTemperature} °C
-                          </p>
-                        )}
-                        {typeof item.soilMoisturePercent === "number" ? (
-                          <p>
-                            <b>Umidade do solo:</b> {item.soilMoisturePercent}%
-                          </p>
-                        ) : typeof item.soilMoisture === "boolean" && (
-                          <p>
-                            <b>Umidade do solo:</b> {item.soilMoisture ? "100%" : "0%"}
-                          </p>
-                        )}
-                        {typeof item.lightLux === "number" && (
-                          <p>
-                            <b>Luminosidade:</b> {item.lightLux} lux
-                          </p>
-                        )}
-                        {typeof item.deviceId === "string" && item.deviceId && (
-                          <p>
-                            <b>Equipamento:</b> {item.deviceId}
-                          </p>
-                        )}
-                        {typeof item.latitude === "number" &&
-                          typeof item.longitude === "number" && (
+                      isCollection ? (
+                        <CollectionDetails item={item} />
+                      ) : (
+                        <div className="record-details">
+                          {typeof item.latitude === "number" &&
+                            typeof item.longitude === "number" && (
+                              <p>
+                                <b>Localização:</b>{" "}
+                                <a
+                                  href={`https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=17/${item.latitude}/${item.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {item.latitude}, {item.longitude}
+                                </a>
+                              </p>
+                            )}
+                          {typeof item.notes === "string" && item.notes && (
                             <p>
-                              <b>Localização:</b>{" "}
-                              <a
-                                href={`https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=17/${item.latitude}/${item.longitude}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                {item.latitude}, {item.longitude}
-                              </a>
+                              <b>Observações:</b> {item.notes}
                             </p>
                           )}
-                        {typeof item.notes === "string" && item.notes && (
                           <p>
-                            <b>Observações:</b> {item.notes}
+                            <b>ID:</b> {item.id}
                           </p>
-                        )}
-                        <p>
-                          <b>ID:</b> {item.id}
-                        </p>
-                      </div>
+                        </div>
+                      )
                     )}
                   </div>
                 </article>
@@ -558,10 +515,10 @@ function Tutorial() {
   const steps = [
     "Cadastre uma área de pesquisa.",
     "Cadastre e identifique o quadrat.",
-    "Conecte o ESP32 por Bluetooth.",
-    "Valide temperatura e umidade.",
-    "Crie a coleta, registre espécies e observações.",
-    "Exporte os dados em CSV quando necessário.",
+    "Conecte o ESP32 por Bluetooth (opcional para leitura automática).",
+    "Abra Nova coleta e selecione o quadrante exato na grade 5×5 (A1 a E5).",
+    "Preencha variáveis abióticas, substrato, cobertura do solo, espécies e perturbações.",
+    "Exporte os dados completos em CSV quando necessário.",
   ];
   return (
     <section className="tutorial-page">
@@ -631,6 +588,10 @@ export default function App() {
     return valid.includes(saved as Section) ? saved as Section : "Inicio";
   });
   const [modal, setModal] = useState<Modal>(null);
+  const [collectionEditor, setCollectionEditor] = useState<CollectionEditorState>(null);
+  const [lastSavedId, setLastSavedId] = useState<string | null>(null);
+  const [lastSavedVersion, setLastSavedVersion] = useState(0);
+  const [savedNotice, setSavedNotice] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -696,6 +657,9 @@ export default function App() {
   }
   async function selectProject(value: Project) {
     setProject(value);
+    setCollectionEditor(null);
+    setLastSavedId(null);
+    setSavedNotice("");
     localStorage.setItem("activeProjectId", value.id);
     const data = await loadRecords(value.id);
     setAreas(data.areas); setQuadrats(data.quadrats); setCollections(data.collections);
@@ -722,37 +686,102 @@ export default function App() {
     const next = available.find(item => item.id !== projectId) ?? available[0];
     await selectProject(next);
   }
+  function openNewCollection() {
+    setSavedNotice("");
+    setCollectionEditor({ mode: "create" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function openEditCollection(item: WorkspaceItem) {
+    setSavedNotice("");
+    setCollectionEditor({ mode: "edit", collection: item });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function openCollectionInHistory(collectionId: string) {
+    setLastSavedId(collectionId);
+    setLastSavedVersion((v) => v + 1);
+    setSavedNotice("");
+    setSection("Coletas");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   async function save(item: WorkspaceItem) {
     if (!project || !modal) return;
     const sharedItem = { ...item, createdBy: user?.uid ?? null, createdByName: name };
-    const kind: RecordKind =
-      modal === "area"
-        ? "areas"
-        : modal === "quadrat"
-          ? "quadrats"
-          : "collections";
+    const kind: RecordKind = modal === "area" ? "areas" : "quadrats";
     await saveRecord(project.id, kind, sharedItem);
     if (kind === "areas") setAreas((value) => [...value, sharedItem]);
     if (kind === "quadrats") setQuadrats((value) => [...value, sharedItem]);
-    if (kind === "collections") setCollections((value) => [...value, sharedItem]);
+  }
+  async function saveCollection(item: WorkspaceItem, photos: DraftPhoto[]) {
+    if (!project) return;
+    const isEditing = collectionEditor?.mode === "edit";
+    const original = isEditing ? collectionEditor.collection : null;
+    const persistedPhotos = await persistCollectionPhotos(project.id, item.id, photos);
+    const sharedItem: WorkspaceItem = {
+      ...item,
+      photoCount: persistedPhotos.length,
+      photos: persistedPhotos,
+      createdBy:
+        original && "createdBy" in original
+          ? original.createdBy
+          : user?.uid ?? null,
+      createdByName:
+        original && typeof original.createdByName === "string"
+          ? original.createdByName
+          : name,
+      ...(isEditing
+        ? {
+            editedAt: Date.now(),
+            editedBy: user?.uid ?? null,
+            editedByName: name,
+          }
+        : {}),
+    };
+    await saveRecord(project.id, "collections", sharedItem);
+    setCollections((value) =>
+      isEditing
+        ? value.map((entry) => (entry.id === sharedItem.id ? sharedItem : entry))
+        : [...value, sharedItem],
+    );
+    setLastSavedId(sharedItem.id);
+    setLastSavedVersion((v) => v + 1);
+    const quadrantText =
+      typeof sharedItem.quadrant === "string"
+        ? ` · Quadrante ${sharedItem.quadrant}${typeof sharedItem.quadrantNumber === "number" ? ` (#${sharedItem.quadrantNumber})` : ""}`
+        : "";
+    const photoText =
+      persistedPhotos.length > 0
+        ? ` · ${persistedPhotos.length} foto${persistedPhotos.length > 1 ? "s" : ""}`
+        : "";
+    setSavedNotice(
+      isEditing
+        ? `Coleta "${sharedItem.name}" atualizada com sucesso${quadrantText}${photoText}.`
+        : `Coleta "${sharedItem.name}" salva com sucesso${quadrantText}${photoText}.`,
+    );
+    setCollectionEditor(null);
+    setSection("Coletas");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function removeCollection(item: WorkspaceItem) {
     if (!project) return;
+    await removeCollectionPhotos(item.id);
     await deleteRecord(project.id, "collections", item.id);
     setCollections((value) => value.filter((entry) => entry.id !== item.id));
   }
   const averages = useMemo(() => {
-    const measured = collections.filter(
+    const tempItems = collections.filter(
       (item) => typeof item.temperature === "number",
     );
+    const humidityItems = collections.filter(
+      (item) => typeof item.humidity === "number",
+    );
     return {
-      temperature: measured.length
-        ? measured.reduce((sum, item) => sum + Number(item.temperature), 0) /
-          measured.length
+      temperature: tempItems.length
+        ? tempItems.reduce((sum, item) => sum + Number(item.temperature), 0) /
+          tempItems.length
         : null,
-      humidity: measured.length
-        ? measured.reduce((sum, item) => sum + Number(item.humidity), 0) /
-          measured.length
+      humidity: humidityItems.length
+        ? humidityItems.reduce((sum, item) => sum + Number(item.humidity), 0) /
+          humidityItems.length
         : null,
     };
   }, [collections]);
@@ -779,8 +808,15 @@ export default function App() {
           {links.map(([label, Icon]) => (
             <button
               key={label}
-              className={section === label ? "active" : ""}
-              onClick={() => setSection(label)}
+              className={
+                (collectionEditor ? label === "Coletas" : section === label)
+                  ? "active"
+                  : ""
+              }
+              onClick={() => {
+                setCollectionEditor(null);
+                setSection(label);
+              }}
             >
               <Icon size={17} />
               {label}
@@ -798,9 +834,22 @@ export default function App() {
       <main className="content">
         <header>
           <div>
-            <small>Quadrats Inteligentes / {section}</small>
+            <small>
+              Quadrats Inteligentes /{" "}
+              {collectionEditor
+                ? collectionEditor.mode === "edit"
+                  ? "Coletas / Editar coleta"
+                  : "Coletas / Nova coleta"
+                : section}
+            </small>
             <h1>
-              {section === "Inicio" ? `Olá, ${name.split(" ")[0]}` : section}
+              {collectionEditor
+                ? collectionEditor.mode === "edit"
+                  ? "Editar coleta"
+                  : "Nova coleta"
+                : section === "Inicio"
+                  ? `Olá, ${name.split(" ")[0]}`
+                  : section}
             </h1>
             <p>{project?.name ?? "Preparando seu projeto..."}</p>
           </div>
@@ -820,9 +869,28 @@ export default function App() {
             voltar.
           </div>
         )}
-        <div className={section === "Inicio" ? "" : "ble-preserved-hidden"}>
+        <div className={!collectionEditor && section === "Inicio" ? "" : "ble-preserved-hidden"}>
           <ConnectionPanel onReading={setLatest} />
         </div>
+        {collectionEditor ? (
+          <CollectionForm
+            key={
+              collectionEditor.mode === "edit"
+                ? `edit-${collectionEditor.collection.id}`
+                : "create"
+            }
+            areas={areas}
+            quadrats={quadrats}
+            existingCollections={collections}
+            latest={latest}
+            initialCollection={
+              collectionEditor.mode === "edit" ? collectionEditor.collection : null
+            }
+            onCancel={() => setCollectionEditor(null)}
+            onSave={saveCollection}
+          />
+        ) : (
+          <>
         {section === "Inicio" && (
           <>
             <section className="hero">
@@ -834,10 +902,10 @@ export default function App() {
               </h2>
               <p>
                 {latest
-                  ? "Leitura recebida. Você já pode registrar uma coleta."
-                  : "Conecte seu ESP32 e visualize os dados antes de coletar."}
+                  ? "Leitura do ESP32 ativa. Os sensores serão preenchidos automaticamente na ficha."
+                  : "Conecte o ESP32 para preencher os sensores automaticamente ou inicie uma coleta manual."}
               </p>
-              <button disabled={!latest} onClick={() => setModal("coleta")}>
+              <button onClick={openNewCollection}>
                 <Plus size={15} />
                 Nova coleta
               </button>
@@ -857,6 +925,15 @@ export default function App() {
                 label="ESP32"
               />
             </section>
+            <HomeMapDashboard
+              areas={areas}
+              quadrats={quadrats}
+              collections={collections}
+              onNewCollection={openNewCollection}
+              onNewArea={() => setModal("area")}
+              onEditCollection={openEditCollection}
+              onOpenCollectionInHistory={openCollectionInHistory}
+            />
           </>
         )}
         {section === "Areas" && (
@@ -883,14 +960,20 @@ export default function App() {
         )}
         {section === "Coletas" && (
           <ItemsPage
+            key={`${lastSavedId ?? "collections"}-${lastSavedVersion}`}
             title="Histórico de coletas"
             items={collections}
             empty="Nenhuma coleta registrada."
             addLabel="Nova coleta"
-            onAdd={() => setModal("coleta")}
+            onAdd={openNewCollection}
+            onEdit={openEditCollection}
             onDelete={removeCollection}
             onRefresh={refreshRecords}
             refreshing={refreshingRecords}
+            isCollection
+            initialExpandedId={lastSavedId}
+            notice={savedNotice}
+            onDismissNotice={() => setSavedNotice("")}
           />
         )}
         {section === "Dados" && (
@@ -943,11 +1026,12 @@ export default function App() {
         )}
         {section === "Equipe" && user && <TeamPage user={user} projects={projects} activeProject={project} onSelect={selectProject} onChanged={projectChanged} onRemoved={projectRemoved} />}
         {section === "Tutorial" && <Tutorial />}
+          </>
+        )}
       </main>
       {modal && (
         <RecordModal
           type={modal}
-          latest={latest}
           close={() => setModal(null)}
           save={save}
         />
